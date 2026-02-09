@@ -50,6 +50,25 @@ describe('tree-utils', () => {
     expect(Array.from(toggled)).toEqual(['a', 'b', 'c']);
   });
 
+  it('treats indeterminate parent toggle as check-all', () => {
+    const tree = new Map<string, TreeUtilNode>([
+      ['root', { id: 'root', parentId: null, childrenIds: ['docs'], level: 0 }],
+      ['docs', { id: 'docs', parentId: 'root', childrenIds: ['d1', 'd2', 'd3'], level: 1 }],
+      ['d1', { id: 'd1', parentId: 'docs', childrenIds: undefined, level: 2 }],
+      ['d2', { id: 'd2', parentId: 'docs', childrenIds: undefined, level: 2 }],
+      ['d3', { id: 'd3', parentId: 'docs', childrenIds: undefined, level: 2 }],
+    ]);
+
+    const afterSelectAllDocs = new Set<string>(['root', 'docs', 'd1', 'd2', 'd3']);
+    const afterUnselectOneChild = toggleHierarchicalSelection('d2', tree, afterSelectAllDocs);
+    const afterToggleDocs = toggleHierarchicalSelection('docs', tree, afterUnselectOneChild);
+
+    expect(afterToggleDocs.has('docs')).toBe(true);
+    expect(afterToggleDocs.has('d1')).toBe(true);
+    expect(afterToggleDocs.has('d2')).toBe(true);
+    expect(afterToggleDocs.has('d3')).toBe(true);
+  });
+
   it('calculates indeterminate states', () => {
     const selected = new Set<string>(['b']);
     const state = calculateHierarchicalSelection(nodes, selected);

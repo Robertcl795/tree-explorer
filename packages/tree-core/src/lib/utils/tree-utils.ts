@@ -185,8 +185,11 @@ export function toggleHierarchicalSelection(
     return newSelected;
   }
 
+  const normalized = calculateHierarchicalSelection(nodes, selectedIds);
   const descendants = getDescendantIds(nodeId, nodes);
-  const shouldSelect = !newSelected.has(nodeId);
+  // Indeterminate should always behave like "check all" on next toggle.
+  const shouldSelect =
+    normalized.indeterminate.has(nodeId) || !normalized.selected.has(nodeId);
 
   if (shouldSelect) {
     newSelected.add(nodeId);

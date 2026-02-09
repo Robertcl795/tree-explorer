@@ -100,6 +100,7 @@ function mockChildrenApi(request: PageRequest): Promise<{
         <p style="margin: 0 0 8px 0;" data-testid="in-flight-pages">In-flight pages: {{ inFlightPagesText() || 'none' }}</p>
         <p style="margin: 0 0 8px 0;" data-testid="cached-pages">Cached pages: {{ cachedPagesText() || 'none' }}</p>
         <p style="margin: 0 0 8px 0;">Cache size: {{ cacheSize() }}</p>
+        <p style="margin: 0 0 8px 0;" data-testid="visible-rows">Visible rows: {{ visibleRowsCount() }}</p>
         <p style="margin: 0;" data-testid="total-count">Total count (X-Total-Count): {{ totalCount() ?? 'unknown' }}</p>
       </aside>
     </div>
@@ -203,6 +204,10 @@ class PageAwareVirtualScrollStoryComponent {
     const tree = this.tree();
     tree?.viewport()?.scrollToIndex(0);
   }
+
+  public visibleRowsCount(): number {
+    return this.tree()?.visibleRows().length ?? 0;
+  }
 }
 
 const meta: Meta<PageAwareVirtualScrollStoryComponent> = {
@@ -238,8 +243,10 @@ export const Validation: Story = {
     await waitFor(async () => {
       const totalCount = await canvas.findByTestId('total-count');
       const cachedPages = await canvas.findByTestId('cached-pages');
+      const visibleRows = await canvas.findByTestId('visible-rows');
       await expect(totalCount).toHaveTextContent(String(TOTAL_CHILDREN));
       await expect(cachedPages).toHaveTextContent('0');
+      await expect(visibleRows).toHaveTextContent(String(TOTAL_CHILDREN + 1));
     });
 
     await userEvent.click(scrollButton);

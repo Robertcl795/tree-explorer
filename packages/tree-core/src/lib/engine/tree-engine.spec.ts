@@ -82,6 +82,34 @@ describe('TreeEngine', () => {
     expect(selectedIds).toEqual(['b']);
   });
 
+  it('selects all descendants when toggling an indeterminate parent', () => {
+    engine.configure({ selection: { mode: SELECTION_MODES.MULTI, hierarchical: true } });
+    engine.init([
+      node('root', 'Root', { isLeaf: false, childrenIds: ['docs'] }),
+      node('docs', 'Documents', { parentId: 'root', level: 1, isLeaf: false, childrenIds: ['d1', 'd2', 'd3'] }),
+      node('d1', 'D1', { parentId: 'docs', level: 2 }),
+      node('d2', 'D2', { parentId: 'docs', level: 2 }),
+      node('d3', 'D3', { parentId: 'docs', level: 2 }),
+    ]);
+
+    engine.selectToggle('docs');
+    engine.selectToggle('d2');
+
+    const before = engine.getVisibleRows(adapter, DEFAULT_TREE_CONFIG);
+    const docsBefore = before.find((row) => row.id === 'docs');
+    expect(docsBefore?.indeterminate).toBe(true);
+
+    engine.selectToggle('docs');
+
+    const after = engine.getVisibleRows(adapter, DEFAULT_TREE_CONFIG);
+    const docsAfter = after.find((row) => row.id === 'docs');
+    expect(docsAfter?.selected).toBe(true);
+    expect(docsAfter?.indeterminate).toBe(false);
+    expect(after.find((row) => row.id === 'd1')?.selected).toBe(true);
+    expect(after.find((row) => row.id === 'd2')?.selected).toBe(true);
+    expect(after.find((row) => row.id === 'd3')?.selected).toBe(true);
+  });
+
   it('expands ancestor path for a node', () => {
     engine.init([
       node('root', 'Root', { isLeaf: false, childrenIds: ['a'] }),
