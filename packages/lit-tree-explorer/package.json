@@ -1,0 +1,13 @@
+{
+  "name": "@lit-tree-explorer",
+  "version": "0.0.1",
+  "private": false,
+  "type": "module",
+  "main": "dist/tree-lit.js",
+  "types": "dist/tree-lit.d.ts",
+  "dependencies": {
+    "@lit-labs/virtualizer": "^2.1.1",
+    "lit": "^3.2.1",
+    "@tree-core": "workspace:*"
+  }
+}

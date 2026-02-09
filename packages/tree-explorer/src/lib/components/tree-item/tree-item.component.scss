@@ -1,0 +1,125 @@
+:host {
+  /* Critical: Fixed height for virtual scrolling consistency */
+  display: block;
+  height: var(--tree-item-height, 32px);
+  
+  .tree-item {
+    position: relative;
+    border-bottom: 1px solid #f0f0f0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+
+    &:not(.disabled) {
+      cursor: context-menu;
+    }
+
+    &.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &.error {
+      border-left: 2px solid #b00020;
+    }
+  }
+
+  .tree-item:hover {
+    background-color: #f5f5f5;
+  }
+
+  .tree-item:hover .context-menu-button {
+    opacity: 1 !important;
+  }
+
+  .item-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+    padding: 4px 8px;
+    gap: 8px;
+  }
+
+  .caret-button {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    
+    mat-icon {
+      color: rgba(0, 0, 0, 0.54); // More neutral gray color
+    }
+
+    &:hover:not([disabled]) {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  .tree-item-icon {
+    color: rgba(0, 0, 0, 0.54); // More neutral gray color for tree icons
+    flex-shrink: 0;
+  }
+
+  .tree-item-label {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(0, 0, 0, 0.87);
+  }
+
+  .row-spinner {
+    position: absolute;
+    left: 8px;
+  }
+
+  .tree-item--spacer {
+    flex: 1;
+  }
+
+  .context-menu-button  {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    
+    mat-icon {
+      color: rgba(0, 0, 0, 0.54);
+    }
+  }
+
+  .context-menu-button:focus {
+    opacity: 1 !important;
+  }
+
+  .checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    padding: 4px;
+    margin: -4px;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+
+    mat-checkbox.mat-mdc-checkbox-disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+}

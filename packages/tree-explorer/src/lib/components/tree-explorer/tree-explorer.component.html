@@ -1,0 +1,92 @@
+<div class="tree-main-container" [attr.aria-label]="treeConfig().ariaLabel">
+  @if (isLoading()) {
+    <mat-progress-bar mode="indeterminate" class="main-loading-bar"></mat-progress-bar>
+  }
+
+  @if (rootLoadError()) {
+    <div class="empty-state error">
+      <mat-icon>error</mat-icon>
+      <span>{{ rootLoadError()!.message || 'Failed to load tree data' }}</span>
+    </div>
+  } @else if (visibleRows().length === 0) {
+    <div class="empty-state">
+      <mat-icon>folder_open</mat-icon>
+      <span>No data available</span>
+    </div>
+  } @else {
+    @if (pinnedRows().length > 0) {
+      <div class="pinned-section">
+        <div class="pinned-title">{{ treeConfig().pinned?.label || 'Pinned' }}</div>
+        @for (row of pinnedRows(); track row.id) {
+          <td-tree-item
+            [row]="row"
+            [display]="displayConfig()"
+            [selectionMode]="treeConfig().selection?.mode"
+            [showContextButton]="hasContextActions(row)"
+            [dragDropEnabled]="treeConfig().dragDrop === true"
+            (rowClick)="onPinnedClick($event, row)"
+            (rowDoubleClick)="onRowDoubleClick($event, row)"
+            (toggleExpand)="onToggleExpand($event, row)"
+            (toggleSelect)="onToggleSelect($event, row)"
+            (contextMenuRequest)="openContextMenu($event, row)"
+            (contextButtonRequest)="openContextMenu($event, row)"
+            (dragStart)="onDragStart($event, row)"
+            (dragOver)="onDragOver($event, row)"
+            (drop)="onDrop($event, row)"
+            (dragEnd)="onDragEnd($event, row)"
+            class="pinned-row" />
+        }
+      </div>
+    }
+    <cdk-virtual-scroll-viewport
+      #viewport
+      [itemSize]="itemSize()"
+      [minBufferPx]="200"
+      [maxBufferPx]="400"
+      class="tree-viewport">
+      @for (row of visibleRows(); track row.id) {
+        <td-tree-item
+          [row]="row"
+          [display]="displayConfig()"
+          [selectionMode]="treeConfig().selection?.mode"
+          [showContextButton]="hasContextActions(row)"
+          [dragDropEnabled]="treeConfig().dragDrop === true"
+          (rowClick)="onRowClick($event, row)"
+          (rowDoubleClick)="onRowDoubleClick($event, row)"
+          (toggleExpand)="onToggleExpand($event, row)"
+          (toggleSelect)="onToggleSelect($event, row)"
+          (contextMenuRequest)="openContextMenu($event, row)"
+          (contextButtonRequest)="openContextMenu($event, row)"
+          (dragStart)="onDragStart($event, row)"
+          (dragOver)="onDragOver($event, row)"
+          (drop)="onDrop($event, row)"
+          (dragEnd)="onDragEnd($event, row)" />
+      }
+    </cdk-virtual-scroll-viewport>
+  }
+
+  <button
+    class="context-menu-anchor"
+    mat-icon-button
+    [matMenuTriggerFor]="contextMenu"
+    [style.left.px]="menuX()"
+    [style.top.px]="menuY()">
+  </button>
+</div>
+
+<mat-menu #contextMenu="matMenu" (closed)="onMenuClosed()">
+  @for (action of getContextActions(); track action.id) {
+    <button
+      mat-menu-item
+      [disabled]="isActionDisabled(action)"
+      (click)="onContextAction(action)">
+      @if (action.icon) {
+        <mat-icon>{{ action.icon(contextRow()!.data) }}</mat-icon>
+      }
+      <span>{{ action.label(contextRow()!.data) }}</span>
+    </button>
+    @if (action.showDividerAfter?.(contextRow()!.data)) {
+      <mat-divider></mat-divider>
+    }
+  }
+</mat-menu>

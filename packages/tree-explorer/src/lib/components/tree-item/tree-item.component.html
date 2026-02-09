@@ -1,0 +1,67 @@
+<div
+  class="tree-item"
+  [class.disabled]="row().disabled"
+  [class.error]="row().error"
+  [style.padding-left.px]="leftPadding()"
+  [attr.tabindex]="row().disabled ? null : 0"
+  [attr.draggable]="dragDropEnabled() && !row().disabled ? true : null"
+  (click)="rowClick.emit($event)"
+  (dblclick)="rowDoubleClick.emit($event)"
+  (contextmenu)="onContextMenu($event)"
+  (dragstart)="onDragStart($event)"
+  (dragover)="onDragOver($event)"
+  (drop)="onDrop($event)"
+  (dragend)="onDragEnd($event)"
+>
+  @if (row().loading) {
+    <mat-progress-spinner
+      diameter="16"
+      class="row-spinner"></mat-progress-spinner>
+  }
+  <div class="item-content">
+    <!-- Expand/Collapse button (always present for alignment) -->
+    <button
+      mat-icon-button
+      class="caret-button"
+      [disabled]="row().isLeaf"
+      [style.visibility]="row().isLeaf ? 'hidden' : 'visible'"
+      (click)="onExpandClick($event)"
+      (contextmenu)="$event.stopPropagation()"
+    >
+      @if (!row().isLeaf) {
+        <mat-icon>{{ row().expanded ? 'expand_more' : 'chevron_right' }}</mat-icon>
+      }
+    </button>
+    <!-- Checkbox for selection -->
+    @if (showCheckbox()) {
+      <div
+        class="checkbox-wrapper"
+        matTooltipPosition="right"
+        (contextmenu)="$event.stopPropagation()">
+        <mat-checkbox
+          class="tree-item-checkbox"
+          [checked]="row().selected"
+          [indeterminate]="row().indeterminate"
+          [disabled]="row().disabled"
+          (change)="onSelectClick($event)"
+          (click)="$event.stopPropagation()"></mat-checkbox>
+      </div>
+    }
+    <!-- Icon and label -->
+    @if (display().showIcons && row().icon) {
+      <mat-icon class="tree-item-icon">{{ row().icon }}</mat-icon>
+    }
+    <span class="tree-item-label">{{ row().label }}</span>
+    <!-- Spacer -->
+    <div class="tree-item--spacer"></div>
+    <!-- Context menu -->
+    @if (showContextButton() && !row().disabled) {
+      <button
+        mat-icon-button
+        class="context-menu-button"
+        (click)="onContextButtonClick($event)">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+    }
+  </div>
+</div>
