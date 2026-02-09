@@ -78,6 +78,21 @@
     color: rgba(0, 0, 0, 0.87);
   }
 
+  .tree-item-placeholder {
+    display: inline-block;
+    width: min(180px, 50%);
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #eceff1 25%, #f5f7f8 50%, #eceff1 75%);
+    background-size: 200% 100%;
+    animation: tree-placeholder-shimmer 1.2s linear infinite;
+  }
+
+  .placeholder-text {
+    color: rgba(0, 0, 0, 0.45);
+    font-style: italic;
+  }
+
   .row-spinner {
     position: absolute;
     left: 8px;
@@ -122,4 +137,13 @@
     }
   }
 
+}
+
+@keyframes tree-placeholder-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }

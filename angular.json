@@ -72,13 +72,7 @@
           "options": {
             "configDir": "packages/tree-explorer/.storybook",
             "browserTarget": "tree-explorer:build",
-            "compodoc": true,
-            "compodocArgs": [
-              "-e",
-              "json",
-              "-d",
-              "packages/tree-explorer"
-            ],
+            "compodoc": false,
             "port": 6006
           }
         },
@@ -87,13 +81,7 @@
           "options": {
             "configDir": "packages/tree-explorer/.storybook",
             "browserTarget": "tree-explorer:build",
-            "compodoc": true,
-            "compodocArgs": [
-              "-e",
-              "json",
-              "-d",
-              "packages/tree-explorer"
-            ],
+            "compodoc": false,
             "outputDir": "storybook-static"
           }
         }

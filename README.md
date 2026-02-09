@@ -1,28 +1,56 @@
 # td-tree-explorer
 
-This workspace contains a framework-agnostic tree core and an Angular wrapper.
+Monorepo for a library-grade tree system with framework-agnostic core logic and UI wrappers.
 
 ## Packages
 
-- @tree-core: pure TypeScript tree engine, types, and utilities
-- @tree-explorer: Angular 20 wrapper with virtual scroll and context menu rendering
-- @lit-tree-explorer: Lit wrapper with virtualized rendering
+- `@tree-core`
+  - Framework-agnostic types, adapter contract, and `TreeEngine` orchestration.
+  - Includes page-aware virtualization primitives (pagination contracts, placeholders, range orchestration).
+- `@tree-explorer`
+  - Angular wrapper with CDK virtualization, container-level context menu, and adapter-driven rendering.
+- `@lit-tree-explorer`
+  - Lit web-component proof of concept.
 
-## Data flow
+## Philosophy
 
+1. Start from data source constraints and UX requirements.
+2. Keep domain logic in adapters.
+3. Keep state/orchestration in `TreeEngine`.
+4. Keep row UI dumb and cheap.
+
+## Workspace Commands (Root)
+
+- Install: `pnpm install`
+- Build: `pnpm build`
+- Typecheck: `pnpm typecheck`
+- Lint: `pnpm lint`
+- Test: `pnpm test`
+- Storybook dev (Angular): `pnpm storybook`
+- Storybook build (Angular): `pnpm storybook:build`
+- Lit build (optional): `pnpm build:lit`
+- Lit Storybook (optional): `pnpm storybook:lit`
+- Clean: `pnpm clean`
+
+## Documentation
+
+- Monorepo setup: `docs/monorepo.md`
+- Architecture: `docs/architecture.md`
+- Page-aware virtual scrolling: `docs/page-aware-virtual-scroll.md`
+- Quality assessment: `docs/quality-report.md`
+- Angular package usage: `packages/tree-explorer/README.md`
+- Core API reference: `packages/tree-core/README.md`
+
+## Data Flow
+
+```text
+Domain Source -> TreeAdapter -> TreeNode graph -> TreeEngine -> TreeRowViewModel -> UI wrapper
 ```
-Sources -> TreeAdapter -> TreeNode[] -> TreeEngine -> TreeRowViewModel[] -> TreeExplorerComponent
-```
 
-## Public API
+## Current Validation Status
 
-- @tree-core exports the adapter contract, types, and TreeEngine
-- @tree-explorer exports TreeExplorerComponent and event types
-- @lit-tree-explorer exports the Lit web component
-
-## Development
-
-- Build: `npm run build`
-- Test: `npm test`
-
-See the package READMEs for detailed usage examples.
+- `pnpm build`: passing
+- `pnpm typecheck`: passing
+- `pnpm lint`: passing
+- `pnpm storybook:build`: passing
+- `pnpm test`: blocked in this environment (no Chrome binary for Karma)

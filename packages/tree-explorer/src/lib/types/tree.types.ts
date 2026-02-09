@@ -1,11 +1,14 @@
 import { TreeContextAction, TreeNode, TreeRowViewModel } from '@tree-core';
 
 export type {
+  PageRequest,
+  PageResult,
   SelectionMode,
   TreeAdapter,
   TreeConfig,
   TreeDisplayConfig,
   TreeLoadError,
+  TreePaginationConfig,
 } from '@tree-core';
 export type { TreeContextAction, TreeNode, TreeRowViewModel } from '@tree-core';
 
@@ -31,4 +34,3 @@ export interface TreeDragEvent<T> {
   row: TreeRowViewModel<T>;
   event: DragEvent;
 }
-

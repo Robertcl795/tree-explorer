@@ -1,160 +1,103 @@
-# Tree Explorer (Angular)
+# @tree-explorer (Angular)
 
-Tree Explorer is the Angular wrapper for the framework-agnostic tree core. It renders a virtualized flat tree, delegates all domain logic to an adapter, and owns a single context menu at the container level.
+Angular wrapper for `@tree-core` with virtualized rendering, adapter-driven behavior, and container-level action/menu orchestration.
 
-## Architecture at a glance
+## Architectural Role
 
-```
-Sources -> Adapter -> TreeNode[] -> TreeEngine -> TreeRowViewModel[] -> TreeExplorerComponent
-```
+- `TreeExplorerComponent`
+  - Container/orchestrator for viewport, events, and context menu.
+- `TreeItemComponent`
+  - Row renderer (non-domain logic).
+- `TreeStateService`
+  - Bridges Angular signals/events to `TreeEngine` operations.
 
-- TreeExplorerComponent orchestrates virtual scroll, events, and menu rendering.
-- TreeItemComponent is a dumb row renderer that receives a view model.
-- TreeAdapter is the only place that knows the domain model.
+## Usage
 
-## Getting started
-
-```typescript
+```ts
 import { Component } from '@angular/core';
 import { TreeExplorerComponent } from '@tree-explorer';
-import { TreeAdapter, TreeConfig } from '@tree-core';
+import { TreeAdapter, TreeConfig, VIRTUALIZATION_MODES } from '@tree-core';
 
-type DocNode = { id: string; name: string; children?: DocNode[] };
+type Item = { id: string; name: string; children?: Item[] };
 
-const adapter: TreeAdapter<DocNode, DocNode> = {
-  getId: (source) => source.id,
-  getLabel: (data) => data.name,
-  getChildren: (data) => data.children,
+const adapter: TreeAdapter<Item, Item> = {
+  getId: (s) => s.id,
+  getLabel: (d) => d.name,
+  getChildren: (d) => d.children,
 };
 
-const config: Partial<TreeConfig<DocNode>> = {
-  selection: { mode: 'single' },
-  display: { indentPx: 24, density: 'normal', showIcons: true },
-  virtualization: { mode: 'auto', itemSize: 36 },
+const config: Partial<TreeConfig<Item>> = {
+  virtualization: { mode: VIRTUALIZATION_MODES.AUTO, itemSize: 36 },
 };
 
 @Component({
-  selector: 'app-example',
   standalone: true,
   imports: [TreeExplorerComponent],
-  template: `
-    <tree-explorer
-      [data]="treeData"
-      [adapter]="adapter"
-      [config]="config"
-      (itemClick)="onItemClick($event)">
-    </tree-explorer>
-  `,
+  template: `<tree-explorer [data]="data" [adapter]="adapter" [config]="config" />`,
 })
-export class ExampleComponent {
+export class DemoComponent {
+  data: Item[] = [{ id: 'root', name: 'Root', children: [{ id: 'a', name: 'A' }] }];
   adapter = adapter;
   config = config;
-  treeData: DocNode[] = [
-    { id: 'root', name: 'Workspace', children: [{ id: 'doc', name: 'Report.pdf' }] },
-  ];
-
-  onItemClick(event: unknown) {
-    console.log(event);
-  }
 }
 ```
 
-## Advanced examples
+## Component API
 
-### Lazy loading
+### Inputs
 
-```typescript
-const adapter: TreeAdapter<LazyNode, LazyNode> = {
-  getId: (source) => source.id,
-  getLabel: (data) => data.name,
-  hasChildren: (data) => !!data.hasChildren,
-  loadChildren: (node) => api.fetchChildren(node.id),
-};
-```
+- `data: TreeChildrenResult<TSource> | TSource[]`
+- `adapter: TreeAdapter<TSource, T>`
+- `config: Partial<TreeConfig<T>>`
+- `loading: boolean`
 
-### Context menu actions
+### Outputs
 
-```typescript
-const config: Partial<TreeConfig<MyNode>> = {
-  actions: [
-    { id: 'open', label: (item) => `Open ${item.name}`, icon: () => 'open_in_new' },
-    { id: 'delete', label: () => 'Delete', disabled: (item) => item.locked },
-  ],
-};
-```
+- `itemClick`, `itemDoubleClick`, `itemToggleExpand`, `itemToggleSelect`
+- `selectionChange`
+- `contextMenuAction`
+- `loadError`
+- `dragStart`, `dragOver`, `drop`, `dragEnd`
 
-### Drag and drop
+## Page-Aware Virtualization Behavior
 
-```typescript
-const config: Partial<TreeConfig<MyNode>> = {
-  dragDrop: true,
-};
+When adapter pagination is enabled for an expanded parent:
 
-const adapter: TreeAdapter<MyNode, MyNode> = {
-  getId: (source) => source.id,
-  getLabel: (data) => data.name,
-  getDragData: (data) => ({ id: data.id, name: data.name }),
-};
-```
+1. Initial page request loads first page and `totalCount`.
+2. Engine creates fixed-length child list (`totalCount`) with placeholders.
+3. CDK viewport range changes trigger `ensureRangeLoaded`.
+4. Only missing pages for rendered placeholder ranges are fetched.
+5. Loaded rows replace placeholders in-place, preserving stable `trackBy` IDs.
 
-### Pinned rows
+## Adapter Example (Paged)
 
-```typescript
-const config: Partial<TreeConfig<MyNode>> = {
-  pinned: { ids: ['favorites', 'recent'], label: 'Quick access' },
-};
-```
+```ts
+import { PageRequest, TreeAdapter } from '@tree-core';
 
-### Error handling
+type Node = { id: string; name: string; hasChildren?: boolean };
 
-```typescript
-const config: Partial<TreeConfig<MyNode>> = {
-  onError: (error) => {
-    // Surface the error in your app (toast, banner, telemetry)
+const adapter: TreeAdapter<Node, Node> = {
+  getId: (s) => s.id,
+  getLabel: (d) => d.name,
+  hasChildren: (d) => !!d.hasChildren,
+  getPagination: (node) =>
+    node.id === 'catalog' ? { enabled: true, pageSize: 50 } : undefined,
+  loadChildren: async (node, reqOrSource) => {
+    const req = (reqOrSource as PageRequest) ?? { pageIndex: 0, pageSize: 50 };
+    const response = await fetch(`/api/${node.id}?page=${req.pageIndex}&size=${req.pageSize}`);
+    const items = await response.json();
+    const totalCount = Number(response.headers.get('X-Total-Count') ?? items.length);
+    return { items, totalCount };
   },
 };
 ```
 
-### Multi-select
+## Non-negotiable UI Rules Enforced
 
-```typescript
-const config: Partial<TreeConfig<MyNode>> = {
-  selection: { mode: 'multi', hierarchical: true },
-};
-```
+- Context menu actions are centralized at container level (`TreeConfig.actions`).
+- Placeholders are non-selectable and non-actionable.
+- `trackBy` is stable and based on row ID.
 
-## API overview
+## Lit Wrapper Note
 
-### Inputs
-
-- `data`: source array (root items)
-- `adapter`: `TreeAdapter<TSource, T>`
-- `config`: `Partial<TreeConfig<T>>`
-- `loading`: external loading flag (optional)
-
-### Outputs
-
-- `itemClick`: `TreeNodeEvent<T>`
-- `itemDoubleClick`: `TreeNodeEvent<T>`
-- `itemToggleExpand`: `TreeNodeEvent<T>`
-- `itemToggleSelect`: `TreeNodeEvent<T>`
-- `selectionChange`: `{ nodes: TreeNode<T>[] }`
-- `contextMenuAction`: `TreeContextMenuEvent<T>`
-- `loadError`: `TreeLoadError`
-- `dragStart`: `TreeDragEvent<T>`
-- `dragOver`: `TreeDragEvent<T>`
-- `drop`: `TreeDragEvent<T>`
-- `dragEnd`: `TreeDragEvent<T>`
-
-## Performance notes
-
-- Always provide stable ids in `TreeAdapter.getId`.
-- Keep `TreeAdapter.transform` deterministic and fast.
-- Use `virtualization.itemSize` that matches rendered row height.
-- Define a single context menu list in `TreeConfig.actions`.
-
-## Web component migration guidance
-
-- Keep all domain logic inside `TreeAdapter` implementations.
-- Avoid Angular-only dependencies in adapter code.
-- Use `TreeConfig` for UI decisions so a Web Component wrapper can mirror behavior.
+`@lit-tree-explorer` remains a POC wrapper. Keep domain logic in adapters so Angular/Lit wrappers can share behavior.

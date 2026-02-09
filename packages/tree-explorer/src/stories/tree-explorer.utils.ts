@@ -10,7 +10,7 @@ import { TreeStateService } from '../lib/services/tree.service';
 
 export { basicConfig, fileSystemConfig, organizationConfig, menuConfig } from './tree-explorer.config';
 
-export type TreeStory = StoryObj<TreeExplorerComponent>;
+export type TreeStory = StoryObj<TreeExplorerComponent<any, any>>;
 
 export interface StoryConfig<TSource, T = TSource> {
   data: TSource[];
@@ -29,7 +29,7 @@ export const createTreeStory = <TSource, T = TSource>(
     config: { ...(storyConfig.config ?? {}), actions: storyConfig.actions ?? [] },
     loading: storyConfig.loading ?? false,
   },
-  render: (args) => treeRender(args),
+  render: (args: any) => treeRender(args),
 });
 
 export function treeRender(args: any, height: string = '80vh') {
@@ -58,4 +58,3 @@ export function treeRender(args: any, height: string = '80vh') {
     `,
   };
 }
-

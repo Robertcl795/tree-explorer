@@ -21,6 +21,7 @@
           <td-tree-item
             [row]="row"
             [display]="displayConfig()"
+            [itemSize]="itemSize()"
             [selectionMode]="treeConfig().selection?.mode"
             [showContextButton]="hasContextActions(row)"
             [dragDropEnabled]="treeConfig().dragDrop === true"
@@ -44,24 +45,24 @@
       [minBufferPx]="200"
       [maxBufferPx]="400"
       class="tree-viewport">
-      @for (row of visibleRows(); track row.id) {
-        <td-tree-item
-          [row]="row"
-          [display]="displayConfig()"
-          [selectionMode]="treeConfig().selection?.mode"
-          [showContextButton]="hasContextActions(row)"
-          [dragDropEnabled]="treeConfig().dragDrop === true"
-          (rowClick)="onRowClick($event, row)"
-          (rowDoubleClick)="onRowDoubleClick($event, row)"
-          (toggleExpand)="onToggleExpand($event, row)"
-          (toggleSelect)="onToggleSelect($event, row)"
-          (contextMenuRequest)="openContextMenu($event, row)"
-          (contextButtonRequest)="openContextMenu($event, row)"
-          (dragStart)="onDragStart($event, row)"
-          (dragOver)="onDragOver($event, row)"
-          (drop)="onDrop($event, row)"
-          (dragEnd)="onDragEnd($event, row)" />
-      }
+      <td-tree-item
+        *cdkVirtualFor="let row of visibleRows(); trackBy: trackByRowId"
+        [row]="row"
+        [display]="displayConfig()"
+        [itemSize]="itemSize()"
+        [selectionMode]="treeConfig().selection?.mode"
+        [showContextButton]="hasContextActions(row)"
+        [dragDropEnabled]="treeConfig().dragDrop === true"
+        (rowClick)="onRowClick($event, row)"
+        (rowDoubleClick)="onRowDoubleClick($event, row)"
+        (toggleExpand)="onToggleExpand($event, row)"
+        (toggleSelect)="onToggleSelect($event, row)"
+        (contextMenuRequest)="openContextMenu($event, row)"
+        (contextButtonRequest)="openContextMenu($event, row)"
+        (dragStart)="onDragStart($event, row)"
+        (dragOver)="onDragOver($event, row)"
+        (drop)="onDrop($event, row)"
+        (dragEnd)="onDragEnd($event, row)" />
     </cdk-virtual-scroll-viewport>
   }
 

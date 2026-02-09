@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -11,6 +13,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
@@ -19,6 +22,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import {
   DEFAULT_TREE_CONFIG,
   SELECTION_MODES,
+  TREE_DENSITY,
   TreeAdapter,
   TreeChildrenResult,
   TreeConfig,
@@ -52,9 +56,9 @@ import { TreeItemComponent } from '../tree-item/tree-item.component';
   providers: [TreeStateService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tree-explorer.component.html',
-  styleUrl: './tree-explorer.component.scss',
+  styleUrls: ['./tree-explorer.component.scss'],
 })
-export class TreeExplorerComponent<TSource, T = TSource> {
+export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewInit {
   public readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
   public readonly contextMenuTrigger = viewChild(MatMenuTrigger);
 
@@ -76,6 +80,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public readonly dragEnd = output<TreeDragEvent<T>>();
 
   protected readonly treeService = inject(TreeStateService<TSource, T>);
+  private readonly destroyRef = inject(DestroyRef);
 
   public readonly contextRow = signal<TreeRowViewModel<T> | null>(null);
   public readonly contextNode = signal<TreeNode<T> | null>(null);
@@ -89,7 +94,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
   public readonly displayConfig = computed(() => ({
     indentPx: this.treeConfig().display?.indentPx ?? 24,
-    density: this.treeConfig().display?.density ?? DEFAULT_TREE_CONFIG.display?.density,
+    density: this.treeConfig().display?.density ?? TREE_DENSITY.NORMAL,
     showIcons: this.treeConfig().display?.showIcons ?? true,
   }));
 
@@ -122,7 +127,12 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
     effect(() => {
       this.treeService.setSources(this.data());
-      this.viewport()?.checkViewportSize();
+      const viewport = this.viewport();
+      viewport?.checkViewportSize();
+      if (viewport) {
+        const range = viewport.getRenderedRange();
+        this.treeService.ensureRangeLoaded(range.start, range.end);
+      }
     });
 
     effect(() => {
@@ -138,13 +148,43 @@ export class TreeExplorerComponent<TSource, T = TSource> {
         this.loadError.emit(error);
       }
     });
+
+    effect(() => {
+      this.visibleRows();
+      const viewport = this.viewport();
+      if (!viewport) {
+        return;
+      }
+      const range = viewport.getRenderedRange();
+      this.treeService.ensureRangeLoaded(range.start, range.end);
+    });
+  }
+
+  public ngAfterViewInit(): void {
+    const viewport = this.viewport();
+    if (!viewport) {
+      return;
+    }
+
+    viewport.renderedRangeStream
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((range) => {
+        this.treeService.ensureRangeLoaded(range.start, range.end);
+      });
   }
 
   public hasContextActions(row: TreeRowViewModel<T>): boolean {
+    if (row.placeholder || row.disabled) {
+      return false;
+    }
     return this.getVisibleActions(row).length > 0;
   }
 
   public onRowClick(event: MouseEvent, row: TreeRowViewModel<T>): void {
+    if (row.placeholder) {
+      return;
+    }
+
     const node = this.treeService.getNode(row.id);
     if (!node) {
       return;
@@ -162,11 +202,19 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   }
 
   public onPinnedClick(event: MouseEvent, row: TreeRowViewModel<T>): void {
+    if (row.placeholder) {
+      return;
+    }
+
     this.scrollToRow(row.id);
     this.onRowClick(event, row);
   }
 
   public onRowDoubleClick(event: MouseEvent, row: TreeRowViewModel<T>): void {
+    if (row.placeholder) {
+      return;
+    }
+
     const node = this.treeService.getNode(row.id);
     if (node) {
       this.itemDoubleClick.emit({ node, row, event });
@@ -175,7 +223,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
   public onToggleExpand(event: MouseEvent, row: TreeRowViewModel<T>): void {
     const node = this.treeService.getNode(row.id);
-    if (!node || row.disabled || row.isLeaf) {
+    if (!node || row.disabled || row.isLeaf || row.placeholder) {
       return;
     }
 
@@ -183,9 +231,9 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     this.itemToggleExpand.emit({ node, row, event });
   }
 
-  public onToggleSelect(event: MouseEvent, row: TreeRowViewModel<T>): void {
+  public onToggleSelect(event: Event, row: TreeRowViewModel<T>): void {
     const node = this.treeService.getNode(row.id);
-    if (!node || row.disabled) {
+    if (!node || row.disabled || row.placeholder) {
       return;
     }
 
@@ -196,6 +244,10 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   }
 
   public onDragStart(event: DragEvent, row: TreeRowViewModel<T>): void {
+    if (row.placeholder) {
+      return;
+    }
+
     const node = this.treeService.getNode(row.id);
     const adapter = this.adapter();
     if (!node || !adapter || !event.dataTransfer) {
@@ -216,7 +268,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public onDragOver(event: DragEvent, row: TreeRowViewModel<T>): void {
     event.preventDefault();
     const node = this.treeService.getNode(row.id);
-    if (node) {
+    if (node && !row.placeholder) {
       this.dragOver.emit({ node, row, event });
     }
   }
@@ -224,19 +276,23 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public onDrop(event: DragEvent, row: TreeRowViewModel<T>): void {
     event.preventDefault();
     const node = this.treeService.getNode(row.id);
-    if (node) {
+    if (node && !row.placeholder) {
       this.drop.emit({ node, row, event });
     }
   }
 
   public onDragEnd(event: DragEvent, row: TreeRowViewModel<T>): void {
     const node = this.treeService.getNode(row.id);
-    if (node) {
+    if (node && !row.placeholder) {
       this.dragEnd.emit({ node, row, event });
     }
   }
 
   public openContextMenu(event: MouseEvent, row: TreeRowViewModel<T>): void {
+    if (row.placeholder) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
 
@@ -282,7 +338,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
   public isActionDisabled(action: TreeContextAction<T>): boolean {
     const row = this.contextRow();
-    if (!row) {
+    if (!row || row.placeholder) {
       return true;
     }
     return action.disabled ? action.disabled(row.data) : false;
@@ -296,7 +352,13 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     return this.getVisibleActions(row);
   }
 
+  public trackByRowId = (_: number, row: TreeRowViewModel<T>) => row.id;
+
   private getVisibleActions(row: TreeRowViewModel<T>): TreeContextAction<T>[] {
+    if (row.placeholder) {
+      return [];
+    }
+
     const actions = this.treeConfig().actions ?? [];
     return actions.filter((action) =>
       action.visible ? action.visible(row.data) : true,
@@ -316,17 +378,28 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
   private mergeConfig(config: Partial<TreeConfig<T>>): TreeConfig<T> {
     const defaults = DEFAULT_TREE_CONFIG as TreeConfig<T>;
+    const defaultDisplay = defaults.display ?? {
+      indentPx: 24,
+      density: DEFAULT_TREE_CONFIG.display!.density,
+      showIcons: true,
+    };
+    const defaultVirtualization = defaults.virtualization ?? {
+      mode: DEFAULT_TREE_CONFIG.virtualization!.mode,
+      itemSize: DEFAULT_TREE_CONFIG.virtualization!.itemSize,
+    };
+
     return {
       ...defaults,
       ...config,
       display: {
-        ...defaults.display,
-        ...config.display,
+        indentPx: config.display?.indentPx ?? defaultDisplay.indentPx,
+        density: config.display?.density ?? defaultDisplay.density,
+        showIcons: config.display?.showIcons ?? defaultDisplay.showIcons,
       },
       selection: config.selection ?? defaults.selection,
       virtualization: {
-        ...defaults.virtualization,
-        ...config.virtualization,
+        mode: config.virtualization?.mode ?? defaultVirtualization.mode,
+        itemSize: config.virtualization?.itemSize ?? defaultVirtualization.itemSize,
       },
       actions: config.actions ?? defaults.actions,
       dragDrop: config.dragDrop ?? defaults.dragDrop,
@@ -335,4 +408,3 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     };
   }
 }
-

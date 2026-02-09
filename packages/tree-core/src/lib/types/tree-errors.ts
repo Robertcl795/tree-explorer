@@ -4,7 +4,7 @@ import { TreeId } from './tree-node';
 export interface TreeLoadError {
   scope: 'root' | 'children';
   nodeId?: TreeId;
+  pageIndex?: number;
   error: unknown;
   message?: string;
 }
-

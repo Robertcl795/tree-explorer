@@ -57,3 +57,51 @@ export function mapSourcesToNodes<TSource, T>(
   );
 }
 
+export interface TreeNodeGraph<T> {
+  directChildren: TreeNode<T>[];
+  allNodes: TreeNode<T>[];
+}
+
+/**
+ * Maps sources to direct children and recursively materializes eager descendants
+ * when adapter.getChildren is provided.
+ */
+export function mapSourcesToNodeGraph<TSource, T>(
+  adapter: TreeAdapter<TSource, T>,
+  sources: TSource[],
+  parentId: string | null = null,
+  level = 0,
+): TreeNodeGraph<T> {
+  const directChildren: TreeNode<T>[] = [];
+  const allNodes: TreeNode<T>[] = [];
+
+  for (const source of sources) {
+    const node = createTreeNode(adapter, source, { parentId, level });
+    directChildren.push(node);
+    allNodes.push(node);
+
+    const data = node.data;
+    const eagerChildren = adapter.getChildren ? adapter.getChildren(data) : undefined;
+    if (!Array.isArray(eagerChildren) || eagerChildren.length === 0) {
+      continue;
+    }
+
+    const childGraph = mapSourcesToNodeGraph(
+      adapter,
+      eagerChildren,
+      node.id,
+      level + 1,
+    );
+
+    if (node.childrenIds === undefined) {
+      node.childrenIds = childGraph.directChildren.map((child) => child.id);
+    }
+    if (typeof node.isLeaf !== 'boolean') {
+      node.isLeaf = childGraph.directChildren.length === 0;
+    }
+
+    allNodes.push(...childGraph.allNodes);
+  }
+
+  return { directChildren, allNodes };
+}

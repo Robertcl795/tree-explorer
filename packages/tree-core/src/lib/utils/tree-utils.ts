@@ -60,8 +60,8 @@ export function getDescendantIds(
   const descendants: string[] = [];
   const queue = [nodeId];
 
-  while (queue.length > 0) {
-    const currentId = queue.shift();
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const currentId = queue[cursor];
     if (!currentId) {
       continue;
     }
@@ -270,4 +270,3 @@ export function getMaxDepth(nodes: Map<string, TreeUtilNode>): number {
   }
   return maxDepth;
 }
-

@@ -1,6 +1,20 @@
 {
   "name": "@tree-explorer",
   "version": "0.0.1",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./fesm2022/tree-explorer.mjs",
+  "module": "./fesm2022/tree-explorer.mjs",
+  "types": "./index.d.ts",
+  "scripts": {
+    "build": "ngc -p tsconfig.lib.json",
+    "test": "ng test tree-explorer --watch=false --browsers=ChromeHeadless --no-progress",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit",
+    "lint": "echo 'No lint configured for @tree-explorer'",
+    "storybook": "cd ../.. && CI=1 ng run tree-explorer:storybook",
+    "storybook:build": "cd ../.. && CI=1 ng run tree-explorer:build-storybook",
+    "clean": "rm -rf ../../dist/tree-explorer"
+  },
   "peerDependencies": {
     "@tree-core": "workspace:*",
     "@angular/cdk": "^19.2.19",
@@ -13,8 +27,10 @@
     "@angular/platform-browser-dynamic": "^19.2.0",
     "rxjs": "~7.8.0"
   },
+  "devDependencies": {
+    "@tree-core": "workspace:*"
+  },
   "dependencies": {
     "tslib": "^2.3.0"
-  },
-  "sideEffects": false
+  }
 }

@@ -1,6 +1,7 @@
 import type { Observable } from 'rxjs';
 
 import { TreeId, TreeNode } from './tree-node';
+import { PageRequest, PageResult, TreePaginationConfig } from './tree-pagination';
 
 /** Context passed to adapter transforms during mapping. */
 export interface TreeTransformContext {
@@ -13,6 +14,12 @@ export type TreeChildrenResult<TSource> =
   | TSource[]
   | Promise<TSource[]>
   | Observable<TSource[]>;
+
+/** Standard result shape for paginated async or sync child loading. */
+export type TreePagedChildrenResult<TSource> =
+  | PageResult<TSource>
+  | Promise<PageResult<TSource>>
+  | Observable<PageResult<TSource>>;
 
 /** Adapter contract for mapping domain sources to tree nodes. */
 export interface TreeAdapter<TSource, T = TSource> {
@@ -32,10 +39,17 @@ export interface TreeAdapter<TSource, T = TSource> {
   isLeaf?: (data: T) => boolean | undefined;
   hasChildren?: (data: T) => boolean | undefined;
   getChildren?: (data: T) => TSource[] | null | undefined;
+  /**
+   * Optional per-parent pagination contract for children loading.
+   * When enabled, wrappers request pages via loadChildren with PageRequest.
+   */
+  getPagination?: (
+    node: TreeNode<T>,
+    data?: T,
+  ) => TreePaginationConfig | undefined;
   loadChildren?: (
     node: TreeNode<T>,
-    source?: TSource,
+    reqOrSource?: PageRequest | TSource,
     data?: T,
-  ) => TreeChildrenResult<TSource>;
+  ) => TreeChildrenResult<TSource> | TreePagedChildrenResult<TSource>;
 }
-

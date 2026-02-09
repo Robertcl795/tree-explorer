@@ -3,13 +3,25 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "baseUrl": "../../",
     "outDir": "../../out-tsc/lib",
     "declaration": true,
     "declarationMap": true,
+    "sourceMap": true,
     "inlineSources": true,
+    "paths": {
+      "@tree-core": [
+        "packages/tree-core/src/public-api.ts"
+      ],
+      "@tree-core/*": [
+        "packages/tree-core/src/*"
+      ]
+    },
     "types": []
   },
   "exclude": [
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "src/stories/**/*.ts",
+    ".storybook/**/*.ts"
   ]
 }

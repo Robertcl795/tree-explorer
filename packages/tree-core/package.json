@@ -2,10 +2,19 @@
   "name": "@tree-core",
   "version": "0.0.1",
   "private": false,
+  "type": "module",
   "sideEffects": false,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "dependencies": {
+  "main": "./fesm2022/tree-core.mjs",
+  "module": "./fesm2022/tree-core.mjs",
+  "types": "./index.d.ts",
+  "scripts": {
+    "build": "ng build tree-core",
+    "test": "ng test tree-core --watch=false --browsers=ChromeHeadless --no-progress",
+    "typecheck": "tsc -p tsconfig.lib.json --noEmit",
+    "lint": "echo 'No lint configured for @tree-core'",
+    "clean": "rm -rf ../../dist/tree-core"
+  },
+  "peerDependencies": {
     "rxjs": "~7.8.0"
   }
 }

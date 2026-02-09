@@ -10,9 +10,9 @@ export type {
   TreeContextAction,
   TreeContextMenuEvent,
   TreeDisplayConfig,
+  TreeDragEvent,
   TreeNode,
   TreeNodeEvent,
   TreeRowViewModel,
   TreeSelectionEvent,
 } from './tree.types';
-

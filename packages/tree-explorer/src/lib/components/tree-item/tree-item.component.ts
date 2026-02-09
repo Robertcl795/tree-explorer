@@ -27,12 +27,16 @@ import {
     MatProgressSpinnerModule,
   ],
   templateUrl: './tree-item.component.html',
-  styleUrl: './tree-item.component.scss',
+  styleUrls: ['./tree-item.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[style.--tree-item-height.px]': 'itemSize()',
+  },
 })
 export class TreeItemComponent<T = any> {
   public readonly row = input.required<TreeRowViewModel<T>>();
   public readonly display = input.required<TreeDisplayConfig>();
+  public readonly itemSize = input(32);
   public readonly selectionMode = input<SELECTION_MODES | undefined>();
   public readonly showContextButton = input(false);
   public readonly dragDropEnabled = input(false);
@@ -40,7 +44,7 @@ export class TreeItemComponent<T = any> {
   public readonly rowClick = output<MouseEvent>();
   public readonly rowDoubleClick = output<MouseEvent>();
   public readonly toggleExpand = output<MouseEvent>();
-  public readonly toggleSelect = output<MouseEvent>();
+  public readonly toggleSelect = output<Event>();
   public readonly contextMenuRequest = output<MouseEvent>();
   public readonly contextButtonRequest = output<MouseEvent>();
   public readonly dragStart = output<DragEvent>();
@@ -65,13 +69,17 @@ export class TreeItemComponent<T = any> {
     this.toggleExpand.emit(event);
   }
 
-  public onSelectClick(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
+  public onSelectClick(event: unknown): void {
+    const uiEvent = event as {
+      preventDefault?: () => void;
+      stopPropagation?: () => void;
+    };
+    uiEvent.preventDefault?.();
+    uiEvent.stopPropagation?.();
     if (this.row().disabled) {
       return;
     }
-    this.toggleSelect.emit(event);
+    this.toggleSelect.emit(event as Event);
   }
 
   public onContextMenu(event: MouseEvent): void {
@@ -120,4 +128,3 @@ export class TreeItemComponent<T = any> {
     this.dragEnd.emit(event);
   }
 }
-

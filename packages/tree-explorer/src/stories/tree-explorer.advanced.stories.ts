@@ -91,23 +91,22 @@ const lazyConfig: Partial<TreeConfig<LazyNode>> = {
   virtualization: { mode: VIRTUALIZATION_MODES.AUTO, itemSize: 32 },
 };
 
-const meta: Meta<TreeExplorerComponent> = {
+const meta: Meta<TreeExplorerComponent<any, any>> = {
   title: 'Tree/Advanced',
   component: TreeExplorerComponent,
 };
 
 export default meta;
 
-export const Basic: StoryObj<TreeExplorerComponent> = createTreeStory({
+export const Basic: StoryObj<TreeExplorerComponent<any, any>> = createTreeStory({
   data: basicData,
   adapter: new ObjectTreeAdapter<BasicNode>(),
   config: multiSelectConfig,
   actions: contextActions,
 });
 
-export const LazyLoad: StoryObj<TreeExplorerComponent> = createTreeStory({
+export const LazyLoad: StoryObj<TreeExplorerComponent<any, any>> = createTreeStory({
   data: lazyRoots,
   adapter: lazyAdapter,
   config: lazyConfig,
 });
-

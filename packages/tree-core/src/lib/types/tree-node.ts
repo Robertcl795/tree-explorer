@@ -9,11 +9,14 @@ export interface TreeNode<T> {
   data: T;
   isLeaf?: boolean;
   disabled?: boolean;
+  placeholder?: boolean;
+  placeholderIndex?: number;
 }
 
 /** View model derived from node state + adapter-provided presentation data. */
 export interface TreeRowViewModel<T> {
   id: TreeId;
+  parentId?: TreeId | null;
   level: number;
   label: string;
   icon?: string | null;
@@ -27,5 +30,6 @@ export interface TreeRowViewModel<T> {
   error?: boolean;
   childrenIds?: readonly TreeId[];
   data: T;
+  placeholder?: boolean;
+  placeholderIndex?: number;
 }
-

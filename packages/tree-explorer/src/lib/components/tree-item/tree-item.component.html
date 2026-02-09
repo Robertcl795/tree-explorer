@@ -51,7 +51,12 @@
     @if (display().showIcons && row().icon) {
       <mat-icon class="tree-item-icon">{{ row().icon }}</mat-icon>
     }
-    <span class="tree-item-label">{{ row().label }}</span>
+    @if (row().placeholder) {
+      <span class="tree-item-placeholder" aria-hidden="true"></span>
+      <span class="tree-item-label placeholder-text">{{ row().label }}</span>
+    } @else {
+      <span class="tree-item-label">{{ row().label }}</span>
+    }
     <!-- Spacer -->
     <div class="tree-item--spacer"></div>
     <!-- Context menu -->

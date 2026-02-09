@@ -14,7 +14,6 @@ const config: StorybookConfig = {
     "name": "@storybook/angular",
     "options": {}
   },
-  "staticDirs": ["../src/assets"],
   "managerHead": (head) => `
     ${head}
     <link rel="stylesheet" href="https://unpkg.com/@angular/material@latest/prebuilt-themes/indigo-pink.css">
