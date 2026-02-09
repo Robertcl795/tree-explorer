@@ -1,13 +1,12 @@
 import { CommonModule } from '@angular/common';
 import {
-  AfterViewInit,
   Component,
   computed,
   signal,
   viewChild,
 } from '@angular/core';
 import { Meta, StoryObj } from '@storybook/angular';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import {
   PageRequest,
   PageResult,
@@ -91,21 +90,22 @@ function mockChildrenApi(request: PageRequest): Promise<{
 
       <aside style="height: 100%; border: 1px solid #d7dce0; border-radius: 10px; background: #fff; padding: 12px; box-sizing: border-box; font-family: 'Roboto', sans-serif; font-size: 13px; color: #1f2a37;">
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <button type="button" (click)="expandRoot()" style="padding: 6px 10px; border: 1px solid #c7ced5; border-radius: 6px; background: #fff; cursor: pointer;">Expand Root</button>
           <button type="button" (click)="scrollNearBottom()" style="padding: 6px 10px; border: 1px solid #c7ced5; border-radius: 6px; background: #fff; cursor: pointer;">Scroll Near Bottom</button>
           <button type="button" (click)="scrollTop()" style="padding: 6px 10px; border: 1px solid #c7ced5; border-radius: 6px; background: #fff; cursor: pointer;">Scroll Top</button>
         </div>
 
         <p style="margin: 0 0 8px 0;"><strong>Page-aware debug</strong></p>
         <p style="margin: 0 0 8px 0;" data-testid="requested-pages">Requested pages: {{ requestedPagesText() || 'none' }}</p>
-        <p style="margin: 0 0 8px 0;">In-flight pages: {{ inFlightPagesText() || 'none' }}</p>
-        <p style="margin: 0 0 8px 0;">Cached pages: {{ cachedPagesText() || 'none' }}</p>
+        <p style="margin: 0 0 8px 0;" data-testid="in-flight-pages">In-flight pages: {{ inFlightPagesText() || 'none' }}</p>
+        <p style="margin: 0 0 8px 0;" data-testid="cached-pages">Cached pages: {{ cachedPagesText() || 'none' }}</p>
         <p style="margin: 0 0 8px 0;">Cache size: {{ cacheSize() }}</p>
-        <p style="margin: 0;">Total count (X-Total-Count): {{ totalCount() ?? 'unknown' }}</p>
+        <p style="margin: 0;" data-testid="total-count">Total count (X-Total-Count): {{ totalCount() ?? 'unknown' }}</p>
       </aside>
     </div>
   `,
 })
-class PageAwareVirtualScrollStoryComponent implements AfterViewInit {
+class PageAwareVirtualScrollStoryComponent {
   public readonly tree = viewChild<TreeExplorerComponent<DomainNode, DomainNode>>('tree');
 
   public readonly roots: RootNode[] = [
@@ -177,19 +177,26 @@ class PageAwareVirtualScrollStoryComponent implements AfterViewInit {
     },
   };
 
-  public ngAfterViewInit(): void {
-    queueMicrotask(() => {
-      const tree = this.tree();
-      const firstRow = tree?.visibleRows()[0];
-      if (tree && firstRow && !firstRow.expanded) {
-        tree.onToggleExpand(new MouseEvent('click'), firstRow);
-      }
-    });
+  public expandRoot(): void {
+    const tree = this.tree();
+    const firstRow = tree?.visibleRows()[0];
+    if (tree && firstRow && !firstRow.expanded) {
+      tree.onToggleExpand(new MouseEvent('click'), firstRow);
+    }
   }
 
   public scrollNearBottom(): void {
     const tree = this.tree();
-    tree?.viewport()?.scrollToIndex(TOTAL_CHILDREN - 3);
+    const viewport = tree?.viewport();
+    if (!viewport) {
+      return;
+    }
+
+    const rows = tree?.visibleRows() ?? [];
+    const targetIndex = Math.max(0, rows.length - 1);
+    viewport.checkViewportSize();
+    viewport.scrollToIndex(targetIndex);
+    queueMicrotask(() => viewport.scrollToIndex(targetIndex));
   }
 
   public scrollTop(): void {
@@ -214,16 +221,35 @@ export const Validation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    const expandButton = await canvas.findByRole('button', {
+      name: /expand root/i,
+    });
+    await userEvent.click(expandButton);
 
     const scrollButton = await canvas.findByRole('button', {
       name: /scroll near bottom/i,
     });
+
+    await waitFor(async () => {
+      const requestedPages = await canvas.findByTestId('requested-pages');
+      await expect(requestedPages).toHaveTextContent('0');
+    });
+
+    await waitFor(async () => {
+      const totalCount = await canvas.findByTestId('total-count');
+      const cachedPages = await canvas.findByTestId('cached-pages');
+      await expect(totalCount).toHaveTextContent(String(TOTAL_CHILDREN));
+      await expect(cachedPages).toHaveTextContent('0');
+    });
+
     await userEvent.click(scrollButton);
 
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    const requestedPages = await canvas.findByTestId('requested-pages');
-    await expect(requestedPages).toHaveTextContent('19');
+    await waitFor(
+      async () => {
+        const requestedPages = await canvas.findByTestId('requested-pages');
+        await expect(requestedPages).toHaveTextContent(/\b19\b/);
+      },
+      { timeout: 6000 },
+    );
   },
 };

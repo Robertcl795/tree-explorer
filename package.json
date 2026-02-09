@@ -58,8 +58,6 @@
     "@angular/compiler-cli": "^19.2.0",
     "@compodoc/compodoc": "1.1.26",
     "@egjs/hammerjs": "^2.0.17",
-    "@storybook/addon-actions": "9.0.8",
-    "@storybook/addon-controls": "9.0.8",
     "@storybook/addon-docs": "9.0.8",
     "@storybook/addon-onboarding": "9.0.8",
     "@storybook/angular": "9.0.8",

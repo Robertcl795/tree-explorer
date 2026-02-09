@@ -123,112 +123,48 @@ export function calculateHierarchicalSelection(
   const selected = new Set(selectedIds);
   const indeterminate = new Set<string>();
 
-  function hasAnyUncheckedDescendant(nodeId: string): boolean {
-    const descendants = getDescendantIds(nodeId, nodes);
-
-    const enabledDescendants = descendants.filter((id) => {
-      const node = nodes.get(id);
-      return node && !node.disabled;
-    });
-
-    if (enabledDescendants.length === 0) {
-      return !selected.has(nodeId);
-    }
-
-    return enabledDescendants.some((id) => !selected.has(id));
-  }
-
-  function areAllDescendantsChecked(nodeId: string): boolean {
-    const descendants = getDescendantIds(nodeId, nodes);
-    const enabledDescendants = descendants.filter((id) => {
-      const node = nodes.get(id);
-      return node && !node.disabled;
-    });
-
-    if (enabledDescendants.length === 0) {
-      return selected.has(nodeId);
-    }
-
-    return enabledDescendants.every((id) => selected.has(id));
-  }
-
-  function checkLeafNode(nodeId: string): {
-    selectedCount: number;
-    totalCount: number;
-  } {
-    return { selectedCount: selected.has(nodeId) ? 1 : 0, totalCount: 1 };
-  }
-
-  function processChildren(children: string[]): {
-    selectedCount: number;
-    totalCount: number;
-  } {
-    let selectedCount = 0;
-    let totalCount = 0;
-
-    for (const childId of children) {
-      const node = nodes.get(childId);
-      if (node && !node.disabled) {
-        const childResult = checkNode(childId);
-        selectedCount += childResult.selectedCount;
-        totalCount += childResult.totalCount;
-      }
-    }
-
-    return { selectedCount, totalCount };
-  }
-
-  function updateParentSelectionState(
-    nodeId: string,
-    selectedCount: number,
-    totalCount: number,
-  ): { selectedCount: number; totalCount: number } {
-    const hasUncheckedDescendants = hasAnyUncheckedDescendant(nodeId);
-    const allDescendantsChecked = areAllDescendantsChecked(nodeId);
-
-    if (selected.has(nodeId) && hasUncheckedDescendants) {
-      indeterminate.add(nodeId);
-      return { selectedCount: totalCount, totalCount };
-    }
-
-    if (selectedCount > 0 && selectedCount < totalCount) {
-      indeterminate.add(nodeId);
-      if (!selected.has(nodeId)) {
-        return { selectedCount, totalCount };
-      }
-    } else if (
-      selectedCount === totalCount &&
-      totalCount > 0 &&
-      allDescendantsChecked
-    ) {
-      selected.add(nodeId);
-      indeterminate.delete(nodeId);
-    } else if (selectedCount === 0 && !hasUncheckedDescendants) {
-      selected.delete(nodeId);
-      indeterminate.delete(nodeId);
-    }
-
-    return { selectedCount, totalCount };
-  }
-
   function checkNode(nodeId: string): {
     selectedCount: number;
     totalCount: number;
   } {
     const node = nodes.get(nodeId);
-    if (!node) {
+    if (!node || node.disabled) {
       return { selectedCount: 0, totalCount: 0 };
     }
 
-    if (!node.childrenIds || node.childrenIds.length === 0) {
-      return checkLeafNode(nodeId);
+    const enabledChildren = (node.childrenIds ?? []).filter((childId) => {
+      const child = nodes.get(childId);
+      return !!child && !child.disabled;
+    });
+
+    if (enabledChildren.length === 0) {
+      return {
+        selectedCount: selected.has(nodeId) ? 1 : 0,
+        totalCount: 1,
+      };
     }
 
-    const { selectedCount, totalCount } = processChildren(
-      Array.from(node.childrenIds),
-    );
+    let selectedCount = 0;
+    let totalCount = 0;
 
-    return updateParentSelectionState(nodeId, selectedCount, totalCount);
+    for (const childId of enabledChildren) {
+      const childState = checkNode(childId);
+      selectedCount += childState.selectedCount;
+      totalCount += childState.totalCount;
+    }
+
+    if (selectedCount === 0) {
+      selected.delete(nodeId);
+      indeterminate.delete(nodeId);
+    } else if (selectedCount === totalCount) {
+      selected.add(nodeId);
+      indeterminate.delete(nodeId);
+    } else {
+      selected.delete(nodeId);
+      indeterminate.add(nodeId);
+    }
+
+    return { selectedCount, totalCount };
   }
 
   for (const nodeId of nodes.keys()) {

@@ -55,5 +55,17 @@ describe('tree-utils', () => {
     const state = calculateHierarchicalSelection(nodes, selected);
     expect(state.indeterminate.has('a')).toBe(true);
   });
-});
 
+  it('does not keep parent indeterminate when its only child is deselected', () => {
+    const singleChildNodes = new Map<string, TreeUtilNode>([
+      ['root', { id: 'root', parentId: null, childrenIds: ['child'], level: 0 }],
+      ['child', { id: 'child', parentId: 'root', childrenIds: undefined, level: 1 }],
+    ]);
+
+    const selected = new Set<string>(['root']);
+    const state = calculateHierarchicalSelection(singleChildNodes, selected);
+
+    expect(state.selected.has('root')).toBe(false);
+    expect(state.indeterminate.has('root')).toBe(false);
+  });
+});

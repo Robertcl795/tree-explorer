@@ -25,8 +25,33 @@ const basicData: BasicNode[] = [
     id: 'root',
     name: 'Workspace',
     children: [
-      { id: 'docs', name: 'Documents', children: [{ id: 'rpt', name: 'Report.pdf' }] },
-      { id: 'img', name: 'Images', children: [{ id: 'logo', name: 'logo.png' }] },
+      {
+        id: 'docs',
+        name: 'Documents',
+        children: [
+          { id: 'rpt', name: 'Report.pdf' },
+          { id: 'inv', name: 'Invoice-2026.xlsx' },
+          { id: 'notes', name: 'Notes.md' },
+        ],
+      },
+      {
+        id: 'img',
+        name: 'Images',
+        children: [
+          { id: 'logo', name: 'logo.png' },
+          { id: 'banner', name: 'banner.jpg' },
+          { id: 'screen', name: 'screenshot.webp' },
+        ],
+      },
+      {
+        id: 'music',
+        name: 'Music',
+        children: [
+          { id: 'trk-a', name: 'Track-A.mp3' },
+          { id: 'trk-b', name: 'Track-B.flac' },
+          { id: 'live', name: 'Live-Session.wav' },
+        ],
+      },
     ],
   },
 ];

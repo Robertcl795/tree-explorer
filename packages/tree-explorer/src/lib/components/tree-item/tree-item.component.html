@@ -21,6 +21,7 @@
   <div class="item-content">
     <!-- Expand/Collapse button (always present for alignment) -->
     <button
+      type="button"
       mat-icon-button
       class="caret-button"
       [disabled]="row().isLeaf"
@@ -62,6 +63,7 @@
     <!-- Context menu -->
     @if (showContextButton() && !row().disabled) {
       <button
+        type="button"
         mat-icon-button
         class="context-menu-button"
         (click)="onContextButtonClick($event)">

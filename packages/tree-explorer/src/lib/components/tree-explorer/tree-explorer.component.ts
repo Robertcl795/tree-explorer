@@ -129,10 +129,6 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
       this.treeService.setSources(this.data());
       const viewport = this.viewport();
       viewport?.checkViewportSize();
-      if (viewport) {
-        const range = viewport.getRenderedRange();
-        this.treeService.ensureRangeLoaded(range.start, range.end);
-      }
     });
 
     effect(() => {
@@ -216,9 +212,16 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
     }
 
     const node = this.treeService.getNode(row.id);
-    if (node) {
-      this.itemDoubleClick.emit({ node, row, event });
+    if (!node) {
+      return;
     }
+
+    if (!row.disabled && !row.isLeaf) {
+      this.treeService.toggleExpand(row);
+      this.itemToggleExpand.emit({ node, row, event });
+    }
+
+    this.itemDoubleClick.emit({ node, row, event });
   }
 
   public onToggleExpand(event: MouseEvent, row: TreeRowViewModel<T>): void {
