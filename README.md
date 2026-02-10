@@ -30,12 +30,15 @@ Monorepo for a library-grade tree system with framework-agnostic core logic and 
 - Storybook build (Angular): `pnpm storybook:build`
 - Lit build (optional): `pnpm build:lit`
 - Lit Storybook (optional): `pnpm storybook:lit`
+- Docs check: `pnpm docs:check`
 - Clean: `pnpm clean`
 
 ## Documentation
 
 - Monorepo setup: `docs/monorepo.md`
 - Architecture: `docs/architecture.md`
+- Filtering review: `docs/filtering-review.md`
+- Next steps roadmap: `docs/next-steps.md`
 - Page-aware virtual scrolling: `docs/page-aware-virtual-scroll.md`
 - Quality assessment: `docs/quality-report.md`
 - Angular package usage: `packages/tree-explorer/README.md`
