@@ -25,6 +25,7 @@ import {
   TreeChildrenResult,
   TreeConfig,
   TreeContextAction,
+  TreeFilterInput,
   TreeLoadError,
   TreeNode,
   TreeRowViewModel,
@@ -65,6 +66,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public readonly loading = input(false);
   public readonly adapter = input.required<TreeAdapter<TSource, T>>();
   public readonly config = input<Partial<TreeConfig<T>>>({});
+  public readonly filterQuery = input<TreeFilterInput>(null);
 
   public readonly itemClick = output<TreeNodeEvent<T>>();
   public readonly itemDoubleClick = output<TreeNodeEvent<T>>();
@@ -125,6 +127,21 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
     effect(() => {
       this.treeService.setSources(this.data());
+    });
+
+    effect(() => {
+      const query = this.filterQuery();
+      const shouldClear =
+        query === null ||
+        query === undefined ||
+        (typeof query === 'string' && query.trim().length === 0);
+
+      if (shouldClear) {
+        this.treeService.clearFilter();
+        return;
+      }
+
+      this.treeService.setFilter(query);
     });
 
     effect(() => {
@@ -406,6 +423,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
       mode: DEFAULT_TREE_CONFIG.virtualization!.mode,
       itemSize: DEFAULT_TREE_CONFIG.virtualization!.itemSize,
     };
+    const defaultFiltering = defaults.filtering ?? DEFAULT_TREE_CONFIG.filtering;
 
     return {
       ...defaults,
@@ -419,6 +437,10 @@ export class TreeExplorerComponent<TSource, T = TSource> {
       virtualization: {
         mode: config.virtualization?.mode ?? defaultVirtualization.mode,
         itemSize: config.virtualization?.itemSize ?? defaultVirtualization.itemSize,
+      },
+      filtering: {
+        ...defaultFiltering,
+        ...config.filtering,
       },
       actions: config.actions ?? defaults.actions,
       dragDrop: config.dragDrop ?? defaults.dragDrop,

@@ -50,6 +50,7 @@ export class DemoComponent {
 - `adapter: TreeAdapter<TSource, T>`
 - `config: Partial<TreeConfig<T>>`
 - `loading: boolean`
+- `filterQuery: TreeFilterInput`
 
 ### Outputs
 
@@ -68,6 +69,27 @@ When adapter pagination is enabled for an expanded parent:
 3. CDK viewport range changes trigger `ensureRangeLoaded`.
 4. Only missing pages for rendered placeholder ranges are fetched.
 5. Loaded rows replace placeholders in-place, preserving stable `trackBy` IDs.
+
+## Filtering Usage
+
+`TreeExplorerComponent` forwards `filterQuery` to core filtering APIs.
+
+```ts
+query = signal('budget');
+```
+
+```html
+<tree-explorer
+  [data]="data"
+  [adapter]="adapter"
+  [config]="config"
+  [filterQuery]="query()" />
+```
+
+Filtering remains adapter-owned for domain matching:
+
+- use `adapter.matches(data, query)` for custom logic
+- or provide `adapter.getSearchText(data)` for default text matching
 
 ## Adapter Example (Paged)
 

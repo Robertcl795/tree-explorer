@@ -7,6 +7,7 @@ import {
   TreeChildrenResult,
   TreeConfig,
   TreeEngine,
+  TreeFilterInput,
   TreeLoadError,
   TreeNode,
   TreeRowViewModel,
@@ -37,7 +38,7 @@ export class TreeStateService<TSource, T = TSource> {
     if (!adapter) {
       return [];
     }
-    return this.engine.getVisibleRows(adapter, this.configRef());
+    return this.engine.getFilteredFlatList(adapter, this.configRef());
   });
 
   public readonly loading = computed(
@@ -72,6 +73,10 @@ export class TreeStateService<TSource, T = TSource> {
           ...(DEFAULT_TREE_CONFIG.virtualization as TreeConfig<T>['virtualization']),
           ...injectedConfig.virtualization,
         },
+        filtering: {
+          ...(DEFAULT_TREE_CONFIG.filtering as TreeConfig<T>['filtering']),
+          ...injectedConfig.filtering,
+        },
       };
       this.configRef.set(merged as TreeConfig<T>);
       this.engine.configure(merged as TreeConfig<T>);
@@ -80,6 +85,7 @@ export class TreeStateService<TSource, T = TSource> {
 
   public setAdapter(adapter: TreeAdapter<TSource, T>): void {
     this.adapterRef.set(adapter);
+    this.reapplyActiveFilter(adapter);
     this.bumpVersion();
   }
 
@@ -95,9 +101,35 @@ export class TreeStateService<TSource, T = TSource> {
         ...(DEFAULT_TREE_CONFIG.virtualization as TreeConfig<T>['virtualization']),
         ...config.virtualization,
       },
+      filtering: {
+        ...(DEFAULT_TREE_CONFIG.filtering as TreeConfig<T>['filtering']),
+        ...config.filtering,
+      },
     };
     this.configRef.set(merged as TreeConfig<T>);
     this.engine.configure(merged as TreeConfig<T>);
+    this.reapplyActiveFilter();
+    this.bumpVersion();
+  }
+
+  public setFilter(filterQuery: TreeFilterInput): void {
+    const adapter = this.adapterRef();
+    if (!adapter) {
+      return;
+    }
+
+    if (!this.engine.setFilter(filterQuery, adapter)) {
+      return;
+    }
+
+    this.bumpVersion();
+  }
+
+  public clearFilter(): void {
+    if (!this.engine.clearFilter()) {
+      return;
+    }
+
     this.bumpVersion();
   }
 
@@ -110,6 +142,7 @@ export class TreeStateService<TSource, T = TSource> {
     if (Array.isArray(sources)) {
       const graph = mapSourcesToNodeGraph(adapter, sources, null, 0);
       this.engine.init(graph.allNodes);
+      this.reapplyActiveFilter(adapter);
       this.rootLoading.set(false);
       this.rootError.set(null);
       this.bumpVersion();
@@ -123,6 +156,7 @@ export class TreeStateService<TSource, T = TSource> {
       .then((result) => {
         const graph = mapSourcesToNodeGraph(adapter, result.items, null, 0);
         this.engine.init(graph.allNodes);
+        this.reapplyActiveFilter(adapter);
         this.rootLoading.set(false);
         this.bumpVersion();
       })
@@ -165,6 +199,7 @@ export class TreeStateService<TSource, T = TSource> {
       row.id,
       typeof adapter.loadChildren === 'function',
     );
+    this.reapplyActiveFilter(adapter);
 
     this.bumpVersion();
 
@@ -327,6 +362,7 @@ export class TreeStateService<TSource, T = TSource> {
         graph.allNodes,
       );
       this.engine.clearNodeError(parentId);
+      this.reapplyActiveFilter(adapter);
       this.bumpVersion();
     } catch (error) {
       const loadError: TreeLoadError = {
@@ -382,6 +418,7 @@ export class TreeStateService<TSource, T = TSource> {
         graph.allNodes,
       );
       this.engine.clearNodeError(parentId);
+      this.reapplyActiveFilter(adapter);
       this.bumpVersion();
     } catch (error) {
       const loadError: TreeLoadError = {
@@ -484,5 +521,14 @@ export class TreeStateService<TSource, T = TSource> {
 
   private bumpVersion(): void {
     this.stateVersion.update((value) => value + 1);
+  }
+
+  private reapplyActiveFilter(adapter?: TreeAdapter<TSource, T>): void {
+    const activeAdapter = adapter ?? this.adapterRef();
+    if (!activeAdapter) {
+      return;
+    }
+
+    this.engine.reapplyFilter(activeAdapter);
   }
 }

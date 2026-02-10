@@ -52,4 +52,14 @@ describe('TreeExplorerComponent', () => {
     const selectedIds = Array.from((component as any).treeService.selectedIds());
     expect(selectedIds).toEqual(['root']);
   });
+
+  it('applies filter query through the tree state service', () => {
+    component.filterQuery.set('missing');
+    fixture.detectChanges();
+    expect(component.visibleRows().length).toBe(0);
+
+    component.filterQuery.set(null);
+    fixture.detectChanges();
+    expect(component.visibleRows().length).toBe(1);
+  });
 });
