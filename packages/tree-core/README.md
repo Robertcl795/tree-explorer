@@ -22,6 +22,9 @@ interface TreeAdapter<TSource, T = TSource> {
   getDragData?: (data: T, node: TreeNode<T>) => string | Record<string, unknown>;
   isDisabled?: (data: T) => boolean;
   isVisible?: (data: T) => boolean;
+  matches?: (data: T, query: TreeFilterQuery) => boolean;
+  getSearchText?: (data: T) => string;
+  highlightRanges?: (label: string, query: TreeFilterQuery) => TreeMatchRange[];
   isLeaf?: (data: T) => boolean | undefined;
   hasChildren?: (data: T) => boolean | undefined;
   getChildren?: (data: T) => TSource[] | null | undefined;
@@ -31,6 +34,21 @@ interface TreeAdapter<TSource, T = TSource> {
     reqOrSource?: PageRequest | TSource,
     data?: T,
   ) => TreeChildrenResult<TSource> | TreePagedChildrenResult<TSource>;
+}
+```
+
+### Filtering contract
+
+```ts
+type TreeFilterInput = TreeFilterQuery | string | null | undefined;
+
+interface TreeFilterQuery {
+  text?: string;
+  tokens?: string[];
+  fields?: string[];
+  flags?: Record<string, boolean>;
+  caseSensitive?: boolean;
+  mode?: 'contains' | 'exact';
 }
 ```
 
@@ -78,8 +96,12 @@ interface PageResult<TSource> {
   - Returns page indices to fetch for unloaded placeholders in a range.
 - `markPageInFlight`, `setPageError`, `clearPageError`
   - In-flight dedupe and page-level error tracking.
+- `setFilter(filterQuery)`, `clearFilter()`, `reapplyFilter(adapter)`
+  - Filter state lifecycle and policy application.
+- `getFilteredFlatList(adapter, config)`
+  - Returns filtered row view-models for wrappers.
 - `getVisibleRows(adapter, config)`
-  - Produces flattened row view-models for wrappers.
+  - Backward-compatible alias to `getFilteredFlatList`.
 
 ## Examples
 
@@ -121,6 +143,14 @@ const adapter: TreeAdapter<ApiNode, ApiNode> = {
 ## Migration Notes
 
 If you already use `loadChildren(node, source?, data?)`, no change is required.
+
+If you already use `adapter.isVisible`, no change is required. It remains supported as the baseline visibility gate.
+
+To adopt query-driven filtering:
+
+1. Call `TreeEngine.setFilter(filterQuery)` from your wrapper/service.
+2. Optionally add `adapter.matches` for domain-aware filtering logic.
+3. Read rows via `getFilteredFlatList(adapter, config)` (or existing `getVisibleRows` alias).
 
 To adopt page-aware loading:
 

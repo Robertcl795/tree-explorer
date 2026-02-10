@@ -202,4 +202,99 @@ describe('TreeEngine', () => {
     const failedRows = rows.filter((row) => row.placeholder && row.error);
     expect(failedRows.map((row) => row.placeholderIndex)).toEqual([4, 5]);
   });
+
+  it('filters rows by query and keeps matching ancestors visible', () => {
+    engine.init([
+      node('root', 'Root', { isLeaf: false, childrenIds: ['docs', 'team'] }),
+      node('docs', 'Documents', { parentId: 'root', level: 1, isLeaf: false, childrenIds: ['budget'] }),
+      node('team', 'Team', { parentId: 'root', level: 1 }),
+      node('budget', 'Budget FY26', { parentId: 'docs', level: 2 }),
+    ]);
+    engine.toggleExpand('root', false);
+    engine.toggleExpand('docs', false);
+
+    engine.setFilter('budget', adapter);
+    const rows = engine.getFilteredFlatList(adapter, DEFAULT_TREE_CONFIG);
+
+    expect(rows.map((row) => row.id)).toEqual(['root', 'docs', 'budget']);
+  });
+
+  it('supports adapter matches and highlight ranges', () => {
+    const queryAdapter: TreeAdapter<Item> = {
+      ...adapter,
+      matches: (data, query) => {
+        const text = query.text?.toLowerCase() ?? '';
+        return data.label.toLowerCase().startsWith(text);
+      },
+      highlightRanges: (label, query) => {
+        const text = query.text ?? '';
+        return text
+          ? [{ start: 0, end: Math.min(label.length, text.length) }]
+          : [];
+      },
+    };
+
+    engine.init([node('r1', 'Report')]);
+    engine.setFilter({ text: 'rep', mode: 'contains' }, queryAdapter);
+    const rows = engine.getFilteredFlatList(queryAdapter, DEFAULT_TREE_CONFIG);
+
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.highlightRanges).toEqual([{ start: 0, end: 3 }]);
+  });
+
+  it('auto-expands matching ancestors when filtering config enables it', () => {
+    engine.configure({
+      filtering: {
+        autoExpandMatches: true,
+      },
+    });
+    engine.init([
+      node('root', 'Root', { isLeaf: false, childrenIds: ['docs'] }),
+      node('docs', 'Documents', { parentId: 'root', level: 1, isLeaf: false, childrenIds: ['budget'] }),
+      node('budget', 'Budget FY26', { parentId: 'docs', level: 2 }),
+    ]);
+
+    engine.setFilter('budget', adapter);
+    const rows = engine.getFilteredFlatList(adapter, DEFAULT_TREE_CONFIG);
+
+    expect(rows.map((row) => row.id)).toEqual(['root', 'docs', 'budget']);
+    expect(engine.expandedIds.has('root')).toBe(true);
+    expect(engine.expandedIds.has('docs')).toBe(true);
+  });
+
+  it('clears hidden selection when selection policy is clearHidden', () => {
+    engine.configure({
+      selection: { mode: SELECTION_MODES.MULTI },
+      filtering: {
+        selectionPolicy: 'clearHidden',
+      },
+    });
+    engine.init([
+      node('root', 'Root', { isLeaf: false, childrenIds: ['a', 'b'] }),
+      node('a', 'Alpha', { parentId: 'root', level: 1 }),
+      node('b', 'Bravo', { parentId: 'root', level: 1 }),
+    ]);
+    engine.toggleExpand('root', false);
+    engine.selectToggle('b');
+
+    engine.setFilter('alpha', adapter);
+
+    expect(Array.from(engine.selectedIds)).toEqual([]);
+  });
+
+  it('keeps legacy isVisible as the baseline visibility gate', () => {
+    const guardedAdapter: TreeAdapter<Item> = {
+      ...adapter,
+      isVisible: (data) => data.id !== 'secret',
+    };
+
+    engine.init([
+      node('public', 'Public File'),
+      node('secret', 'Secret File'),
+    ]);
+    engine.setFilter('secret', guardedAdapter);
+
+    const rows = engine.getFilteredFlatList(guardedAdapter, DEFAULT_TREE_CONFIG);
+    expect(rows.map((row) => row.id)).toEqual([]);
+  });
 });

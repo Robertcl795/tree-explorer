@@ -14,6 +14,12 @@ import {
   VIRTUALIZATION_MODES,
 } from '../types/tree-config';
 import { TreeAdapter } from '../types/tree-adapter';
+import {
+  DEFAULT_TREE_FILTERING_CONFIG,
+  TreeFilterInput,
+  TreeFilteringConfig,
+  TreeFilterQuery,
+} from '../types/tree-filter';
 import { PageRequest, TreePaginationConfig } from '../types/tree-pagination';
 import { TreeId, TreeNode, TreeRowViewModel } from '../types/tree-node';
 
@@ -52,6 +58,11 @@ export interface TreeStats {
   maxDepth: number;
 }
 
+interface FilteredVisibilityState {
+  visibleIds: Set<TreeId>;
+  directMatchIds: Set<TreeId>;
+}
+
 export class TreeEngine<T> {
   private state: TreeState<T> = {
     nodes: new Map(),
@@ -65,6 +76,10 @@ export class TreeEngine<T> {
 
   private selectionMode: SelectionMode = { mode: SELECTION_MODES.NONE };
   private virtualizationMode = VIRTUALIZATION_MODES.AUTO;
+  private filterQuery: TreeFilterQuery | null = null;
+  private filterConfig: Required<TreeFilteringConfig> = {
+    ...DEFAULT_TREE_FILTERING_CONFIG,
+  };
 
   configure(config?: Partial<TreeConfig<T>>): void {
     if (config?.selection) {
@@ -72,6 +87,12 @@ export class TreeEngine<T> {
     }
     if (config?.virtualization?.mode) {
       this.virtualizationMode = config.virtualization.mode;
+    }
+    if (config?.filtering) {
+      this.filterConfig = {
+        ...DEFAULT_TREE_FILTERING_CONFIG,
+        ...config.filtering,
+      };
     }
   }
 
@@ -99,6 +120,19 @@ export class TreeEngine<T> {
       selected: this.state.selected.size,
       loading: this.state.loading.size,
       maxDepth: getMaxDepth(this.state.nodes),
+    };
+  }
+
+  getFilterQuery(): TreeFilterQuery | null {
+    if (!this.filterQuery) {
+      return null;
+    }
+
+    return {
+      ...this.filterQuery,
+      tokens: this.filterQuery.tokens ? [...this.filterQuery.tokens] : undefined,
+      fields: this.filterQuery.fields ? [...this.filterQuery.fields] : undefined,
+      flags: this.filterQuery.flags ? { ...this.filterQuery.flags } : undefined,
     };
   }
 
@@ -634,7 +668,42 @@ export class TreeEngine<T> {
       : 'deep';
   }
 
-  getVisibleRows<TSource>(
+  setFilter<TSource>(
+    filterInput: TreeFilterInput,
+    adapter?: TreeAdapter<TSource, T>,
+  ): boolean {
+    const normalized = this.normalizeFilterQuery(filterInput);
+    if (this.filterFingerprint(this.filterQuery) === this.filterFingerprint(normalized)) {
+      return false;
+    }
+
+    this.filterQuery = normalized;
+
+    if (normalized && adapter) {
+      this.applyFilterPolicies(adapter);
+    }
+
+    return true;
+  }
+
+  clearFilter(): boolean {
+    if (!this.filterQuery) {
+      return false;
+    }
+
+    this.filterQuery = null;
+    return true;
+  }
+
+  reapplyFilter<TSource>(adapter: TreeAdapter<TSource, T>): boolean {
+    if (!this.filterQuery) {
+      return false;
+    }
+
+    return this.applyFilterPolicies(adapter);
+  }
+
+  getFilteredFlatList<TSource>(
     adapter: TreeAdapter<TSource, T>,
     config?: TreeConfig<T>,
   ): TreeRowViewModel<T>[] {
@@ -644,12 +713,14 @@ export class TreeEngine<T> {
       this.state.selected,
     );
     const errors = this.state.errors;
+    const visibilityState = this.computeFilteredVisibility(adapter, flattened);
+    const activeQuery = this.filterQuery;
 
     const rows: TreeRowViewModel<T>[] = [];
 
     for (const flatNode of flattened) {
       const node = this.state.nodes.get(flatNode.id);
-      if (!node) {
+      if (!node || !visibilityState.visibleIds.has(node.id)) {
         continue;
       }
 
@@ -659,18 +730,17 @@ export class TreeEngine<T> {
       }
 
       const data = node.data;
-      const visible = adapter.isVisible ? adapter.isVisible(data) : true;
-      if (!visible) {
-        continue;
-      }
-
+      const label = adapter.getLabel(data);
       const disabled = adapter.isDisabled
         ? adapter.isDisabled(data)
         : !!node.disabled;
-      const label = adapter.getLabel(data);
       const adapterIcon = adapter.getIcon ? adapter.getIcon(data) : undefined;
       const icon = adapterIcon ?? config?.defaultIcon;
       const isLeaf = this.resolveIsLeaf(adapter, node);
+      const highlightRanges =
+        activeQuery && visibilityState.directMatchIds.has(node.id)
+          ? this.resolveHighlightRanges(adapter, label, activeQuery)
+          : undefined;
 
       rows.push({
         id: node.id,
@@ -680,12 +750,13 @@ export class TreeEngine<T> {
         icon: icon ?? null,
         isLeaf,
         disabled,
-        visible,
+        visible: true,
         expanded: this.state.expanded.has(node.id),
         selected: selectionData.selected.has(node.id),
         indeterminate: selectionData.indeterminate.has(node.id),
         loading: this.state.loading.has(node.id),
         error: errors.has(node.id),
+        highlightRanges,
         childrenIds: node.childrenIds,
         data: node.data,
         placeholder: false,
@@ -693,6 +764,13 @@ export class TreeEngine<T> {
     }
 
     return rows;
+  }
+
+  getVisibleRows<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+    config?: TreeConfig<T>,
+  ): TreeRowViewModel<T>[] {
+    return this.getFilteredFlatList(adapter, config);
   }
 
   getRowViewModelsById<TSource>(
@@ -708,24 +786,36 @@ export class TreeEngine<T> {
       this.state.nodes,
       this.state.selected,
     );
+    const visibilityState = this.computeFilteredVisibility(
+      adapter,
+      this.flattenedNodes(),
+    );
+    const activeQuery = this.filterQuery;
 
     return ids
       .map((id) => this.state.nodes.get(id))
       .filter((node): node is TreeNode<T> => !!node)
       .map((node) => {
         if (node.placeholder) {
-          return this.createPlaceholderRow(node);
+          return this.createPlaceholderRow(
+            node,
+            visibilityState.visibleIds.has(node.id),
+          );
         }
 
         const data = node.data;
-        const visible = adapter.isVisible ? adapter.isVisible(data) : true;
+        const label = adapter.getLabel(data);
+        const visible = visibilityState.visibleIds.has(node.id);
         const disabled = adapter.isDisabled
           ? adapter.isDisabled(data)
           : !!node.disabled;
-        const label = adapter.getLabel(data);
         const adapterIcon = adapter.getIcon ? adapter.getIcon(data) : undefined;
         const icon = adapterIcon ?? config?.defaultIcon;
         const isLeaf = this.resolveIsLeaf(adapter, node);
+        const highlightRanges =
+          activeQuery && visibilityState.directMatchIds.has(node.id)
+            ? this.resolveHighlightRanges(adapter, label, activeQuery)
+            : undefined;
 
         return {
           id: node.id,
@@ -741,6 +831,7 @@ export class TreeEngine<T> {
           indeterminate: selectionData.indeterminate.has(node.id),
           loading: this.state.loading.has(node.id),
           error: this.state.errors.has(node.id),
+          highlightRanges,
           childrenIds: node.childrenIds,
           data: node.data,
           placeholder: false,
@@ -748,7 +839,10 @@ export class TreeEngine<T> {
       });
   }
 
-  private createPlaceholderRow(node: TreeNode<T>): TreeRowViewModel<T> {
+  private createPlaceholderRow(
+    node: TreeNode<T>,
+    visible = true,
+  ): TreeRowViewModel<T> {
     const parentId = node.parentId ?? null;
     const placeholderIndex = typeof node.placeholderIndex === 'number' ? node.placeholderIndex : 0;
     const pagedState = parentId ? this.pagedChildren.get(parentId) : undefined;
@@ -772,7 +866,7 @@ export class TreeEngine<T> {
       icon: null,
       isLeaf: true,
       disabled: true,
-      visible: true,
+      visible,
       expanded: false,
       selected: false,
       indeterminate: false,
@@ -820,6 +914,317 @@ export class TreeEngine<T> {
 
   private flattenedNodes() {
     return flattenTree(this.state.nodes, this.state.expanded);
+  }
+
+  private computeFilteredVisibility<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+    flattened: ReturnType<typeof flattenTree>,
+  ): FilteredVisibilityState {
+    const activeQuery = this.filterQuery;
+    const hasQuery = !!activeQuery;
+    const flattenedIds = new Set<TreeId>(flattened.map((node) => node.id));
+    const baseVisibleIds = new Set<TreeId>();
+    const directMatchIds = new Set<TreeId>();
+
+    for (const flatNode of flattened) {
+      const node = this.state.nodes.get(flatNode.id);
+      if (!node || node.placeholder) {
+        continue;
+      }
+
+      const data = node.data;
+      if (!this.isLegacyVisible(adapter, data)) {
+        continue;
+      }
+
+      const label = adapter.getLabel(data);
+      baseVisibleIds.add(node.id);
+
+      if (!hasQuery || this.matchesActiveFilter(adapter, data, label, activeQuery)) {
+        directMatchIds.add(node.id);
+      }
+    }
+
+    const visibleIds = new Set<TreeId>();
+    const visibleContentIds = hasQuery
+      ? new Set(directMatchIds)
+      : new Set(baseVisibleIds);
+
+    if (hasQuery && this.filterConfig.showParentsOfMatches) {
+      for (const matchId of directMatchIds) {
+        const ancestors = getAncestorIds(matchId, this.state.nodes);
+        for (const ancestorId of ancestors) {
+          if (flattenedIds.has(ancestorId) && baseVisibleIds.has(ancestorId)) {
+            visibleContentIds.add(ancestorId);
+          }
+        }
+      }
+    }
+
+    for (const nodeId of visibleContentIds) {
+      visibleIds.add(nodeId);
+    }
+
+    for (const flatNode of flattened) {
+      const node = this.state.nodes.get(flatNode.id);
+      if (!node?.placeholder) {
+        continue;
+      }
+
+      if (hasQuery && !this.filterConfig.keepPlaceholdersVisible) {
+        continue;
+      }
+
+      if (!node.parentId || !hasQuery || visibleContentIds.has(node.parentId)) {
+        visibleIds.add(node.id);
+      }
+    }
+
+    return { visibleIds, directMatchIds };
+  }
+
+  private applyFilterPolicies<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+  ): boolean {
+    let changed = false;
+
+    if (this.filterConfig.autoExpandMatches && this.filterQuery) {
+      changed = this.autoExpandMatchedAncestors(adapter) || changed;
+    }
+
+    if (
+      this.filterConfig.selectionPolicy === 'clearHidden' &&
+      this.filterQuery
+    ) {
+      changed = this.clearHiddenSelection(adapter) || changed;
+    }
+
+    return changed;
+  }
+
+  private autoExpandMatchedAncestors<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+  ): boolean {
+    const activeQuery = this.filterQuery;
+    if (!activeQuery) {
+      return false;
+    }
+
+    const ancestorsToExpand = new Set<TreeId>();
+    for (const node of this.state.nodes.values()) {
+      if (node.placeholder) {
+        continue;
+      }
+
+      const data = node.data;
+      if (!this.isLegacyVisible(adapter, data)) {
+        continue;
+      }
+
+      const label = adapter.getLabel(data);
+      if (!this.matchesActiveFilter(adapter, data, label, activeQuery)) {
+        continue;
+      }
+
+      const ancestors = getAncestorIds(node.id, this.state.nodes);
+      for (const ancestorId of ancestors) {
+        ancestorsToExpand.add(ancestorId);
+      }
+    }
+
+    if (ancestorsToExpand.size === 0) {
+      return false;
+    }
+
+    const expanded = new Set(this.state.expanded);
+    const previousSize = expanded.size;
+    for (const ancestorId of ancestorsToExpand) {
+      expanded.add(ancestorId);
+    }
+
+    if (expanded.size === previousSize) {
+      return false;
+    }
+
+    this.state = {
+      ...this.state,
+      expanded,
+    };
+
+    return true;
+  }
+
+  private clearHiddenSelection<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+  ): boolean {
+    if (this.state.selected.size === 0) {
+      return false;
+    }
+
+    const visibility = this.computeFilteredVisibility(adapter, this.flattenedNodes());
+    const selected = new Set<TreeId>();
+
+    for (const nodeId of this.state.selected) {
+      if (visibility.visibleIds.has(nodeId)) {
+        selected.add(nodeId);
+      }
+    }
+
+    if (selected.size === this.state.selected.size) {
+      return false;
+    }
+
+    this.state = {
+      ...this.state,
+      selected,
+    };
+
+    return true;
+  }
+
+  private normalizeFilterQuery(
+    input: TreeFilterInput,
+  ): TreeFilterQuery | null {
+    if (typeof input === 'string') {
+      const text = input.trim();
+      if (!text) {
+        return null;
+      }
+      return { text, mode: 'contains' };
+    }
+
+    if (!input || typeof input !== 'object') {
+      return null;
+    }
+
+    const text = typeof input.text === 'string' ? input.text.trim() : undefined;
+    const tokens = (input.tokens ?? [])
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0);
+    const fields = (input.fields ?? [])
+      .map((field) => field.trim())
+      .filter((field) => field.length > 0);
+    const hasFlags = !!input.flags && Object.keys(input.flags).length > 0;
+    const hasTerms = !!text || tokens.length > 0;
+    const hasContext = fields.length > 0 || hasFlags;
+
+    if (!hasTerms && !hasContext) {
+      return null;
+    }
+
+    return {
+      text,
+      tokens: tokens.length > 0 ? tokens : undefined,
+      fields: fields.length > 0 ? fields : undefined,
+      flags: input.flags ? { ...input.flags } : undefined,
+      caseSensitive: input.caseSensitive,
+      mode: input.mode ?? 'contains',
+    };
+  }
+
+  private filterFingerprint(query: TreeFilterQuery | null): string {
+    if (!query) {
+      return '';
+    }
+    return JSON.stringify(query);
+  }
+
+  private isLegacyVisible<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+    data: T,
+  ): boolean {
+    return adapter.isVisible ? adapter.isVisible(data) : true;
+  }
+
+  private matchesActiveFilter<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+    data: T,
+    label: string,
+    query: TreeFilterQuery,
+  ): boolean {
+    if (adapter.matches) {
+      return adapter.matches(data, query);
+    }
+
+    const searchText = adapter.getSearchText
+      ? adapter.getSearchText(data)
+      : label;
+    const sourceText = typeof searchText === 'string' ? searchText : '';
+    const terms = this.queryTerms(query);
+
+    if (terms.length === 0) {
+      return true;
+    }
+
+    const caseSensitive = query.caseSensitive === true;
+    const normalizedSource = caseSensitive
+      ? sourceText
+      : sourceText.toLocaleLowerCase();
+    const normalizedTerms = caseSensitive
+      ? terms
+      : terms.map((term) => term.toLocaleLowerCase());
+
+    if (query.mode === 'exact') {
+      return normalizedTerms.every((term) => normalizedSource === term);
+    }
+
+    return normalizedTerms.every((term) => normalizedSource.includes(term));
+  }
+
+  private queryTerms(query: TreeFilterQuery): string[] {
+    const terms: string[] = [];
+
+    if (typeof query.text === 'string') {
+      const trimmed = query.text.trim();
+      if (trimmed.length > 0) {
+        if (query.mode === 'exact') {
+          terms.push(trimmed);
+        } else {
+          terms.push(...trimmed.split(/\s+/));
+        }
+      }
+    }
+
+    for (const token of query.tokens ?? []) {
+      const trimmed = token.trim();
+      if (trimmed.length > 0) {
+        terms.push(trimmed);
+      }
+    }
+
+    return terms;
+  }
+
+  private resolveHighlightRanges<TSource>(
+    adapter: TreeAdapter<TSource, T>,
+    label: string,
+    query: TreeFilterQuery,
+  ) {
+    if (adapter.highlightRanges) {
+      return adapter.highlightRanges(label, query);
+    }
+
+    const text = query.text?.trim();
+    if (!text) {
+      return undefined;
+    }
+
+    const caseSensitive = query.caseSensitive === true;
+    const source = caseSensitive ? label : label.toLocaleLowerCase();
+    const needle = caseSensitive ? text : text.toLocaleLowerCase();
+
+    if (query.mode === 'exact') {
+      return source === needle && label.length > 0
+        ? [{ start: 0, end: label.length }]
+        : undefined;
+    }
+
+    const start = source.indexOf(needle);
+    if (start < 0) {
+      return undefined;
+    }
+
+    return [{ start, end: start + needle.length }];
   }
 
   private isSelectionAllowed(nodeId: TreeId): boolean {

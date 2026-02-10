@@ -2,6 +2,7 @@ import type { Observable } from 'rxjs';
 
 import { TreeId, TreeNode } from './tree-node';
 import { PageRequest, PageResult, TreePaginationConfig } from './tree-pagination';
+import { TreeFilterQuery, TreeMatchRange } from './tree-filter';
 
 /** Context passed to adapter transforms during mapping. */
 export interface TreeTransformContext {
@@ -35,7 +36,24 @@ export interface TreeAdapter<TSource, T = TSource> {
   /** Optional drag payload builder used by UI wrappers. */
   getDragData?: (data: T, node: TreeNode<T>) => string | Record<string, unknown>;
   isDisabled?: (data: T) => boolean;
+  /**
+   * Legacy visibility predicate retained for backward compatibility.
+   * Prefer `matches` + engine filter state for query-driven filtering.
+   */
   isVisible?: (data: T) => boolean;
+  /**
+   * Optional query-aware matcher used by engine filtering when a query is active.
+   */
+  matches?: (data: T, query: TreeFilterQuery) => boolean;
+  /**
+   * Optional search text extractor used by default contains/exact matching.
+   * Falls back to getLabel when omitted.
+   */
+  getSearchText?: (data: T) => string;
+  /**
+   * Optional highlight mapping for matched label ranges.
+   */
+  highlightRanges?: (label: string, query: TreeFilterQuery) => TreeMatchRange[];
   isLeaf?: (data: T) => boolean | undefined;
   hasChildren?: (data: T) => boolean | undefined;
   getChildren?: (data: T) => TSource[] | null | undefined;

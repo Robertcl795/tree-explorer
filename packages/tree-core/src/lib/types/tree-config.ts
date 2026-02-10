@@ -1,5 +1,6 @@
 import { TreeContextAction } from './tree-context-action';
 import { TreeLoadError } from './tree-errors';
+import { DEFAULT_TREE_FILTERING_CONFIG, TreeFilteringConfig } from './tree-filter';
 import { TreeId } from './tree-node';
 
 export enum TREE_DENSITY {
@@ -49,6 +50,8 @@ export interface TreeConfig<T> {
   selection?: SelectionMode;
   /** Virtualization settings for large datasets. */
   virtualization?: TreeVirtualizationConfig;
+  /** Filtering behavior and policies. */
+  filtering?: TreeFilteringConfig;
   /** Enable drag and drop behavior in the UI layer. */
   dragDrop?: boolean;
   /** Optional pinned section configuration. */
@@ -74,10 +77,10 @@ export const DEFAULT_TREE_CONFIG: Readonly<TreeConfig<unknown>> = Object.freeze(
   },
   selection: { mode: SELECTION_MODES.NONE },
   virtualization: { mode: VIRTUALIZATION_MODES.AUTO, itemSize: 48 },
+  filtering: DEFAULT_TREE_FILTERING_CONFIG,
   actions: [],
   dragDrop: false,
   defaultIcon: 'insert_drive_file',
   ariaLabel: 'Tree',
   trackingTag: 'tree',
 });
-

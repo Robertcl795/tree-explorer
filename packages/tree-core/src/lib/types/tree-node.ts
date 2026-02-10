@@ -1,3 +1,5 @@
+import { TreeMatchRange } from './tree-filter';
+
 export type TreeId = string;
 
 /** Minimal, serializable tree node model. */
@@ -28,6 +30,7 @@ export interface TreeRowViewModel<T> {
   indeterminate: boolean;
   loading: boolean;
   error?: boolean;
+  highlightRanges?: readonly TreeMatchRange[];
   childrenIds?: readonly TreeId[];
   data: T;
   placeholder?: boolean;
