@@ -301,7 +301,12 @@ export class TreeStateService<TSource, T = TSource> {
   }
 
   public selectRange(fromId: string, toId: string): void {
-    this.engine.selectRange(fromId, toId);
+    const adapter = this.adapterRef();
+    if (adapter) {
+      this.engine.selectRange(fromId, toId, adapter, this.configRef());
+    } else {
+      this.engine.selectRange(fromId, toId);
+    }
     this.bumpVersion();
   }
 

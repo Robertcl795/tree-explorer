@@ -18,6 +18,7 @@ import {
   DEFAULT_TREE_FILTERING_CONFIG,
   TreeFilterInput,
   TreeFilteringConfig,
+  TreeFilterMode,
   TreeFilterQuery,
 } from '../types/tree-filter';
 import { PageRequest, TreePaginationConfig } from '../types/tree-pagination';
@@ -618,16 +619,34 @@ export class TreeEngine<T> {
     };
   }
 
-  selectRange(fromId: TreeId, toId: TreeId): void {
+  selectRange<TSource>(
+    fromId: TreeId,
+    toId: TreeId,
+    adapter?: TreeAdapter<TSource, T>,
+    config?: TreeConfig<T>,
+  ): void {
     if (this.selectionMode.mode !== SELECTION_MODES.MULTI) {
       return;
     }
 
-    const flattened = this.flattenedNodes().filter((node) => node.isVisible);
-    const rangeIds = getSelectionRange(fromId, toId, flattened);
+    const rangeIds = adapter
+      ? this.getSelectionRangeFromRows(
+          fromId,
+          toId,
+          this.getFilteredFlatList(adapter, config),
+        )
+      : getSelectionRange(
+          fromId,
+          toId,
+          this.flattenedNodes().filter((node) => node.isVisible),
+        );
 
     const selected = new Set(this.state.selected);
-    rangeIds.forEach((id) => selected.add(id));
+    rangeIds.forEach((id) => {
+      if (this.isSelectionAllowed(id)) {
+        selected.add(id);
+      }
+    });
 
     this.state = {
       ...this.state,
@@ -738,7 +757,9 @@ export class TreeEngine<T> {
       const icon = adapterIcon ?? config?.defaultIcon;
       const isLeaf = this.resolveIsLeaf(adapter, node);
       const highlightRanges =
-        activeQuery && visibilityState.directMatchIds.has(node.id)
+        activeQuery &&
+        this.shouldApplyClientFiltering() &&
+        visibilityState.directMatchIds.has(node.id)
           ? this.resolveHighlightRanges(adapter, label, activeQuery)
           : undefined;
 
@@ -813,7 +834,9 @@ export class TreeEngine<T> {
         const icon = adapterIcon ?? config?.defaultIcon;
         const isLeaf = this.resolveIsLeaf(adapter, node);
         const highlightRanges =
-          activeQuery && visibilityState.directMatchIds.has(node.id)
+          activeQuery &&
+          this.shouldApplyClientFiltering() &&
+          visibilityState.directMatchIds.has(node.id)
             ? this.resolveHighlightRanges(adapter, label, activeQuery)
             : undefined;
 
@@ -922,6 +945,7 @@ export class TreeEngine<T> {
   ): FilteredVisibilityState {
     const activeQuery = this.filterQuery;
     const hasQuery = !!activeQuery;
+    const shouldApplyClientFiltering = this.shouldApplyClientFiltering();
     const flattenedIds = new Set<TreeId>(flattened.map((node) => node.id));
     const baseVisibleIds = new Set<TreeId>();
     const directMatchIds = new Set<TreeId>();
@@ -940,7 +964,11 @@ export class TreeEngine<T> {
       const label = adapter.getLabel(data);
       baseVisibleIds.add(node.id);
 
-      if (!hasQuery || this.matchesActiveFilter(adapter, data, label, activeQuery)) {
+      if (
+        !hasQuery ||
+        !shouldApplyClientFiltering ||
+        this.matchesActiveFilter(adapter, data, label, activeQuery)
+      ) {
         directMatchIds.add(node.id);
       }
     }
@@ -987,8 +1015,13 @@ export class TreeEngine<T> {
     adapter: TreeAdapter<TSource, T>,
   ): boolean {
     let changed = false;
+    const filterMode = this.filterConfig.mode;
 
-    if (this.filterConfig.autoExpandMatches && this.filterQuery) {
+    if (
+      filterMode !== 'server' &&
+      this.filterConfig.autoExpandMatches &&
+      this.filterQuery
+    ) {
       changed = this.autoExpandMatchedAncestors(adapter) || changed;
     }
 
@@ -1255,5 +1288,31 @@ export class TreeEngine<T> {
 
   private placeholderId(parentId: TreeId, index: number): TreeId {
     return `__tree_placeholder__${parentId}__${index}`;
+  }
+
+  private shouldApplyClientFiltering(): boolean {
+    const mode: TreeFilterMode = this.filterConfig.mode;
+    return mode !== 'server';
+  }
+
+  private getSelectionRangeFromRows(
+    fromId: TreeId,
+    toId: TreeId,
+    rows: TreeRowViewModel<T>[],
+  ): TreeId[] {
+    const startIndex = rows.findIndex((row) => row.id === fromId);
+    const endIndex = rows.findIndex((row) => row.id === toId);
+
+    if (startIndex === -1 || endIndex === -1) {
+      return [];
+    }
+
+    const [fromIndex, toIndex] =
+      startIndex <= endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+
+    return rows
+      .slice(fromIndex, toIndex + 1)
+      .filter((row) => !row.disabled && !row.placeholder)
+      .map((row) => row.id);
   }
 }

@@ -1,59 +1,125 @@
 # td-tree-explorer
 
-Monorepo for a library-grade tree system with framework-agnostic core logic and UI wrappers.
+Monorepo for a library-grade tree system with a framework-agnostic core engine and UI wrappers.
+
+## Why this library
+
+- Large-tree support with virtualization-first design.
+- Adapter-first domain integration.
+- Unified state orchestration in `@tree-core`.
+- Query-based filtering with backward compatibility for `isVisible`.
+- Page-aware lazy loading with placeholders and range-driven page fetch.
+
+## Feature Snapshot
+
+- Tree state engine (`TreeEngine`) with expand/select/load/error orchestration.
+- Query filtering contract:
+  - `setFilter`, `clearFilter`, `getFilteredFlatList`.
+  - adapter hooks: `matches`, `getSearchText`, `highlightRanges`.
+- Virtualization-safe placeholders for paged children.
+- Angular wrapper (`@tree-explorer`) with CDK virtual scroll.
+- Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
+- Storybook coverage for advanced, filtering, and page-aware scenarios.
+
+## Platform Baseline
+
+- Angular baseline: `19.2.x` (workspace standard).
+- Node: `>=18`
+- pnpm: `9.x`
+
+See `docs/next-steps.md` for Angular 20 adoption opportunities.
+
+## Quickstart
+
+### 1) Install and validate
+
+```bash
+pnpm install
+pnpm typecheck
+pnpm docs:check
+```
+
+### 2) Run Storybook
+
+```bash
+pnpm storybook
+```
+
+### 3) Minimal Angular usage
+
+```ts
+import { Component, signal } from '@angular/core';
+import { TreeExplorerComponent } from '@tree-explorer';
+import { TreeAdapter, TreeConfig } from '@tree-core';
+
+type Item = { id: string; name: string; children?: Item[] };
+
+const adapter: TreeAdapter<Item, Item> = {
+  getId: (source) => source.id,
+  getLabel: (data) => data.name,
+  getChildren: (data) => data.children,
+};
+
+const config: Partial<TreeConfig<Item>> = {
+  virtualization: { mode: 'auto', itemSize: 36 },
+  filtering: { showParentsOfMatches: true, autoExpandMatches: true },
+};
+
+@Component({
+  standalone: true,
+  imports: [TreeExplorerComponent],
+  template: `
+    <tree-explorer
+      [data]="data"
+      [adapter]="adapter"
+      [config]="config"
+      [filterQuery]="query()"
+      style="height: 70vh; display: block" />
+  `,
+})
+export class DemoComponent {
+  query = signal('budget');
+  data: Item[] = [{ id: 'root', name: 'Root', children: [{ id: 'budget', name: 'Budget FY26.xlsx' }] }];
+  adapter = adapter;
+  config = config;
+}
+```
+
+## Documentation Hub
+
+### Architecture and Design
+
+- `docs/architecture.md`
+- `docs/filtering-review.md`
+- `docs/page-aware-virtual-scroll.md`
+
+### Quality and Planning
+
+- `docs/quality-report.md`
+- `docs/next-steps.md`
+
+### Workspace and Operations
+
+- `docs/monorepo.md`
+
+### Package Guides
+
+- `packages/tree-core/README.md`
+- `packages/tree-explorer/README.md`
+- `packages/lit-tree-explorer/README.md`
+
+## Workspace Commands
+
+- `pnpm build`
+- `pnpm test`
+- `pnpm typecheck`
+- `pnpm lint`
+- `pnpm storybook`
+- `pnpm storybook:build`
+- `pnpm docs:check`
 
 ## Packages
 
-- `@tree-core`
-  - Framework-agnostic types, adapter contract, and `TreeEngine` orchestration.
-  - Includes page-aware virtualization primitives (pagination contracts, placeholders, range orchestration).
-- `@tree-explorer`
-  - Angular wrapper with CDK virtualization, container-level context menu, and adapter-driven rendering.
-- `@lit-tree-explorer`
-  - Lit web-component proof of concept.
-
-## Philosophy
-
-1. Start from data source constraints and UX requirements.
-2. Keep domain logic in adapters.
-3. Keep state/orchestration in `TreeEngine`.
-4. Keep row UI dumb and cheap.
-
-## Workspace Commands (Root)
-
-- Install: `pnpm install`
-- Build: `pnpm build`
-- Typecheck: `pnpm typecheck`
-- Lint: `pnpm lint`
-- Test: `pnpm test`
-- Storybook dev (Angular): `pnpm storybook`
-- Storybook build (Angular): `pnpm storybook:build`
-- Lit build (optional): `pnpm build:lit`
-- Lit Storybook (optional): `pnpm storybook:lit`
-- Docs check: `pnpm docs:check`
-- Clean: `pnpm clean`
-
-## Documentation
-
-- Monorepo setup: `docs/monorepo.md`
-- Architecture: `docs/architecture.md`
-- Filtering review: `docs/filtering-review.md`
-- Next steps roadmap: `docs/next-steps.md`
-- Page-aware virtual scrolling: `docs/page-aware-virtual-scroll.md`
-- Quality assessment: `docs/quality-report.md`
-- Angular package usage: `packages/tree-explorer/README.md`
-- Core API reference: `packages/tree-core/README.md`
-
-## Data Flow
-
-```text
-Domain Source -> TreeAdapter -> TreeNode graph -> TreeEngine -> TreeRowViewModel -> UI wrapper
-```
-
-## Current Validation Status
-
-- `pnpm build`: passing
-- `pnpm typecheck`: passing
-- `pnpm lint`: passing
-- `pnpm storybook:build`: passing
-- `pnpm test`: blocked in this environment (no Chrome binary for Karma)
+- `@tree-core`: engine, contracts, utilities.
+- `@tree-explorer`: Angular wrapper.
+- `@lit-tree-explorer`: Lit POC wrapper.

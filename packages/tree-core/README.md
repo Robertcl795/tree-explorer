@@ -50,6 +50,16 @@ interface TreeFilterQuery {
   caseSensitive?: boolean;
   mode?: 'contains' | 'exact';
 }
+
+type TreeFilterMode = 'client' | 'hybrid' | 'server';
+
+interface TreeFilteringConfig {
+  mode?: TreeFilterMode;
+  showParentsOfMatches?: boolean;
+  autoExpandMatches?: boolean;
+  selectionPolicy?: 'keep' | 'clearHidden';
+  keepPlaceholdersVisible?: boolean;
+}
 ```
 
 ### Pagination contract
@@ -100,6 +110,8 @@ interface PageResult<TSource> {
   - Filter state lifecycle and policy application.
 - `getFilteredFlatList(adapter, config)`
   - Returns filtered row view-models for wrappers.
+- `selectRange(fromId, toId, adapter?, config?)`
+  - Range-select rows. When adapter/config are provided, range is computed over filtered rows.
 - `getVisibleRows(adapter, config)`
   - Backward-compatible alias to `getFilteredFlatList`.
 
@@ -151,6 +163,10 @@ To adopt query-driven filtering:
 1. Call `TreeEngine.setFilter(filterQuery)` from your wrapper/service.
 2. Optionally add `adapter.matches` for domain-aware filtering logic.
 3. Read rows via `getFilteredFlatList(adapter, config)` (or existing `getVisibleRows` alias).
+4. Choose filtering mode in config:
+   - `client` (default): core filters loaded rows.
+   - `hybrid`: same as client for loaded rows; wrappers may load deeper matches.
+   - `server`: adapter/API owns filtering; core skips query matching.
 
 To adopt page-aware loading:
 

@@ -219,6 +219,58 @@ describe('TreeEngine', () => {
     expect(rows.map((row) => row.id)).toEqual(['root', 'docs', 'budget']);
   });
 
+  it('treats server filter mode as adapter-owned filtering', () => {
+    engine.configure({
+      filtering: {
+        mode: 'server',
+      },
+    });
+    engine.init([
+      node('root', 'Root', { isLeaf: false, childrenIds: ['a', 'b'] }),
+      node('a', 'Alpha', { parentId: 'root', level: 1 }),
+      node('b', 'Bravo', { parentId: 'root', level: 1 }),
+    ]);
+    engine.toggleExpand('root', false);
+
+    engine.setFilter('missing', adapter);
+    const rows = engine.getFilteredFlatList(adapter, DEFAULT_TREE_CONFIG);
+
+    expect(rows.map((row) => row.id)).toEqual(['root', 'a', 'b']);
+    expect(rows.every((row) => !row.highlightRanges)).toBe(true);
+  });
+
+  it('uses filtered row order for range selection when adapter context is provided', () => {
+    engine.configure({ selection: { mode: SELECTION_MODES.MULTI } });
+    engine.init([
+      node('root', 'Root', { isLeaf: false, childrenIds: ['a', 'b', 'c'] }),
+      node('a', 'Alpha', { parentId: 'root', level: 1 }),
+      node('b', 'Bravo', { parentId: 'root', level: 1 }),
+      node('c', 'Charlie', { parentId: 'root', level: 1 }),
+    ]);
+    engine.toggleExpand('root', false);
+    engine.setFilter('charlie', adapter);
+
+    engine.selectRange('root', 'c', adapter, DEFAULT_TREE_CONFIG);
+
+    expect(Array.from(engine.selectedIds).sort()).toEqual(['c', 'root']);
+  });
+
+  it('keeps legacy structural range selection when adapter context is omitted', () => {
+    engine.configure({ selection: { mode: SELECTION_MODES.MULTI } });
+    engine.init([
+      node('root', 'Root', { isLeaf: false, childrenIds: ['a', 'b', 'c'] }),
+      node('a', 'Alpha', { parentId: 'root', level: 1 }),
+      node('b', 'Bravo', { parentId: 'root', level: 1 }),
+      node('c', 'Charlie', { parentId: 'root', level: 1 }),
+    ]);
+    engine.toggleExpand('root', false);
+    engine.setFilter('charlie', adapter);
+
+    engine.selectRange('root', 'c');
+
+    expect(Array.from(engine.selectedIds).sort()).toEqual(['a', 'b', 'c', 'root']);
+  });
+
   it('supports adapter matches and highlight ranges', () => {
     const queryAdapter: TreeAdapter<Item> = {
       ...adapter,

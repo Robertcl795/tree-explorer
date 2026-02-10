@@ -14,6 +14,19 @@ For each paginated parent node:
 4. Fill loaded slots with real nodes and remaining slots with placeholders.
 5. On viewport range changes, request only missing pages for visible placeholder ranges.
 
+```mermaid
+flowchart TD
+  A[Expand paged parent] --> B[Load first page]
+  B --> C[Read totalCount]
+  C --> D[Create fixed-length child slots]
+  D --> E[Insert loaded rows + placeholders]
+  E --> F[Viewport renders range]
+  F --> G[ensureRangeLoaded]
+  G --> H[Request missing pages only]
+  H --> I[Replace placeholders in-place]
+  I --> F
+```
+
 ## Core Contracts
 
 ```ts

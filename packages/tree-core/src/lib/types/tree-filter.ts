@@ -15,8 +15,16 @@ export interface TreeFilterQuery {
 export type TreeFilterInput = TreeFilterQuery | string | null | undefined;
 
 export type TreeFilterSelectionPolicy = 'keep' | 'clearHidden';
+export type TreeFilterMode = 'client' | 'hybrid' | 'server';
 
 export interface TreeFilteringConfig {
+  /**
+   * Filtering execution mode.
+   * - client: apply query matching over loaded nodes in core.
+   * - hybrid: same as client for loaded nodes; wrappers may additionally trigger deeper loading.
+   * - server: assume data source already applies filtering; core keeps only baseline visibility gates.
+   */
+  mode?: TreeFilterMode;
   /**
    * Keep ancestor rows visible when descendants match the filter query.
    * Defaults to true for tree-search ergonomics.
@@ -41,6 +49,7 @@ export interface TreeFilteringConfig {
 }
 
 export const DEFAULT_TREE_FILTERING_CONFIG: Readonly<Required<TreeFilteringConfig>> = Object.freeze({
+  mode: 'client',
   showParentsOfMatches: true,
   autoExpandMatches: false,
   selectionPolicy: 'keep',

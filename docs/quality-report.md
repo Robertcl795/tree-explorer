@@ -1,185 +1,88 @@
-# Quality & Shortcomings Report
+# Quality Report
 
-Date: 2026-02-09
-Scope: `@tree-core`, `@tree-explorer`, `@lit-tree-explorer` in `/home/rocker/LABS/tree-explorer`
+Date: 2026-02-10
+Scope: repository-wide docs and implementation quality status
 
-## 1) Current Architecture and Data Flow
+## Current Baseline
 
-### Package map
+- Angular baseline standardized to `19.2.x` across workspace manifests.
+- Query filtering contract implemented in core and wired in Angular/Lit wrappers.
+- Storybook includes filtering scenarios and page-aware virtual-scroll validation.
+- Documentation now reflects current behavior rather than pre-refactor assumptions.
 
-- `packages/tree-core`
-  - Contracts: `src/lib/types/*`
-  - Engine: `src/lib/engine/tree-engine.ts`
-  - Utilities: `src/lib/utils/*`
-- `packages/tree-explorer`
-  - Angular container: `src/lib/components/tree-explorer/tree-explorer.component.ts`
-  - Angular row component: `src/lib/components/tree-item/tree-item.component.ts`
-  - State/orchestration service: `src/lib/services/tree.service.ts`
-  - Adapter helper: `src/lib/adapters/index.ts`
-- `packages/lit-tree-explorer`
-  - Lit wrapper POC: `src/tree-lit.ts`
+## Deprecated Content Removed
 
-### Runtime flow today (Angular)
+The previous quality report described known pre-refactor defects that are now resolved or no longer accurate.
 
-1. `TreeExplorerComponent` receives `data`, `adapter`, `config`.
-2. `TreeStateService` maps sources to `TreeNode[]` with `mapSourcesToNodes`.
-3. `TreeEngine` stores nodes and computes flattened rows (`getVisibleRows`).
-4. Component renders rows and forwards row events back to `TreeStateService`.
+Deprecated findings removed from active report:
 
-### Runtime flow today (Lit POC)
+- no filter contract in core
+- wrapper-only filtering behavior
+- missing filtering stories
+- docs claiming architecture gaps already closed
 
-1. `TreeLit` resolves root sources.
-2. Creates root nodes inline (not via shared mapping util).
-3. Uses `TreeEngine` for visible rows.
-4. Renders with `lit-virtualizer`.
+## Quality Checklist
 
-## 2) Public API vs Actual Consumer Usage
+### Core behavior checklist
 
-### `@tree-core` public API
+- [x] `TreeEngine` exposes filtering lifecycle methods.
+- [x] Adapter extension points support domain-owned matching.
+- [x] Backward compatibility for `adapter.isVisible` is preserved.
+- [x] Placeholder semantics remain virtualization-safe under filtering.
+- [x] `selectRange` supports filtered row order when adapter/config context is provided.
+- [x] Filtering mode contract is explicit (`client` | `hybrid` | `server`).
 
-- Exports all types, engine, and utils (`src/public-api.ts` -> `src/lib/index.ts`)
-- Core public contracts used by wrappers:
-  - `TreeAdapter`
-  - `TreeConfig`/enums
-  - `TreeNode`, `TreeRowViewModel`
-  - `TreeEngine`
-  - `mapSourcesToNodes`
+### Wrapper integration checklist
 
-### `@tree-explorer` public API
+- [x] Angular wrapper accepts `filterQuery` input.
+- [x] Angular service re-applies filter on relevant state changes.
+- [x] Lit POC has `filterQuery` parity.
+- [x] Wrapper spec typing is compatible with signal input APIs.
 
-- Exports components, services, adapters, types, tokens, module, utils (`src/public-api.ts`)
-- Consumers in repo currently use:
-  - `TreeExplorerComponent`
-  - `ObjectTreeAdapter`
-  - Core types through re-exported `tree.types`
+### Documentation checklist
 
-### `@lit-tree-explorer`
+- [x] Root `README.md` functions as documentation hub.
+- [x] Architecture diagrams are flowchart-based and GitHub-safe.
+- [x] Filtering review reflects current contract and risks.
+- [x] Next-steps roadmap includes filtering and platform strategy.
+- [x] Docs sanity check script (`pnpm docs:check`) is in place.
 
-- POC web component with package metadata, but no proper workspace build integration.
-- Uses `@tree-core` directly.
+## Remaining Risks
 
-### Observed mismatch
+1. Filtering is still full-scan O(n) per recompute on large loaded trees.
+2. Hybrid mode deeper-match loading remains wrapper strategy, not core scheduler policy.
+3. Server-side mode still needs cookbook-quality examples in docs/stories.
+4. Browser-based Karma tests can be environment-limited in sandbox/CI images without browser/runtime support.
 
-- API/docs imply nested eager trees are supported (`getChildren`), but initial mapping is shallow only; descendants are not inserted into engine state.
+## Recommended Validation Gate
 
-## 3) Quality Findings
+Use this minimum gate before release:
 
-## API design issues
+```bash
+pnpm typecheck
+pnpm docs:check
+pnpm storybook:build
+```
 
-1. **Adapter contract not pagination-ready**
-   - `loadChildren` only returns plain child arrays (`TreeChildrenResult<TSource>`), no `totalCount`/page request type.
-   - Impact: cannot support fixed-height placeholder strategy for paged backends.
-   - Fix: introduce `PageRequest` + `PageResult<TSource>` and paged load contract.
+Optional in browser-enabled CI:
 
-2. **Leaky/inconsistent mapping paths**
-   - Angular uses `mapSourcesToNodes`; Lit POC re-implements mapping inline.
-   - Impact: divergent behavior and bugs between wrappers.
-   - Fix: centralize node creation/mapping flow in core utilities.
+```bash
+pnpm test
+```
 
-3. **Over-exported `@tree-explorer` API surface**
-   - Exports internals (service/module/utils) not necessarily library-grade stable API.
-   - Impact: future refactors become breaking.
-   - Fix: narrow exports or mark advanced exports as internal/unstable and document migration policy.
+## Quality Priorities (Next)
 
-4. **`TreeExplorerModule.forRoot/forFeature` uses `any`**
-   - No typed config contract in module helpers.
-   - Fix: type with `Partial<TreeConfig<unknown>>` (or generic provider helpers).
+### P0
 
-## Coupling and responsibility issues
+1. Add explicit server-side and hybrid filtering cookbook examples.
+2. Add performance guardrails for high-frequency filter updates.
 
-1. **Angular wrapper contains orchestration logic that should be engine-level**
-   - Child loading orchestration currently in `TreeStateService` only.
-   - Impact: no shared paging/placeholder orchestration for Lit and other wrappers.
-   - Fix: move pagination orchestration primitives into `TreeEngine`.
+### P1
 
-2. **Lit wrapper duplicates logic and bypasses service patterns**
-   - POC diverges from Angular orchestration and error handling semantics.
-   - Fix: align wrappers on common engine contracts.
+1. Add performance instrumentation for query recompute.
+2. Add more Storybook interaction assertions for filtering + pagination together.
 
-3. **Docs and comments claim Angular 20, but manifests use Angular 19**
-   - Version inconsistency introduces onboarding confusion.
-   - Fix: either upgrade or document exact supported version in root docs and scripts.
+### P2
 
-## Performance risks
-
-1. **Critical: virtual scroll is not actually used in Angular template**
-   - `cdk-virtual-scroll-viewport` contains `@for` loop, not `*cdkVirtualFor`.
-   - Impact: full DOM render for all rows; severe regressions for large trees.
-   - Fix: switch to `*cdkVirtualFor` and proper `trackBy` function.
-
-2. **Potential row height mismatch**
-   - Row host style defaults to fixed 32px while config `itemSize` defaults 48.
-   - Impact: scroll math drift, jitter, blanking.
-   - Fix: tie row height CSS variable to `itemSize`.
-
-3. **Repeated expensive computations per refresh**
-   - `getVisibleRows` recomputes flattening + hierarchical selection each call.
-   - `calculateHierarchicalSelection` repeatedly traverses descendants.
-   - Impact: high CPU for large trees and frequent state updates.
-   - Fix: cache flatten + selection derivation by version, optimize selection traversal.
-
-4. **Queue/array operations with avoidable overhead**
-   - `getDescendantIds` uses `shift()` in loop.
-   - Impact: extra allocations and O(n^2)-like behavior on big graphs.
-   - Fix: index-based queue traversal.
-
-5. **No range-driven lazy loading**
-   - Child loading only on expand; quick scrolling cannot request missing pages.
-   - Fix: add `ensureRangeLoaded` with in-flight dedupe by `(parentId,pageIndex)`.
-
-## Functional correctness bugs
-
-1. **Nested eager children are effectively broken**
-   - `mapSourcesToNodes` is shallow; children IDs are set but child nodes are not inserted.
-   - Expanding a node with `getChildren` data won’t render descendants unless `loadChildren` path is used.
-   - Fix: recursive mapping utility for eager trees.
-
-2. **Placeholder concept absent**
-   - No non-interactive placeholder nodes to preserve total scroll height.
-   - Fix: add placeholder node metadata and UI handling.
-
-## Test gaps
-
-1. No tests for true virtual scrolling behavior in Angular template.
-2. No tests for eager nested-source correctness (`getChildren` recursion).
-3. No tests for paged loading orchestration, placeholder replacement, range-driven fetch, in-flight dedupe.
-4. No Storybook interaction assertions for quick-scroll page loading.
-
-## Documentation gaps
-
-1. No formal architecture docs folder currently present.
-2. No page-aware virtualization design/guarantee document.
-3. No monorepo root-operability docs (`pnpm build/test/storybook` orchestration).
-4. Existing docs overstate support without clarifying constraints.
-
-## 4) Prioritized Fix List
-
-### P0 (must address first)
-
-1. Fix Angular virtualization rendering (`*cdkVirtualFor` + stable `trackBy`).
-2. Add pagination contracts (`PageRequest`, `PageResult`) and page-aware engine orchestration.
-3. Implement placeholder nodes and range-driven page loading with in-flight dedupe.
-4. Repair eager nested-data mapping recursion.
-5. Establish root-first workspace scripts and install behavior.
-6. Fix Storybook runtime/build failures at root command level.
-
-### P1 (next)
-
-1. Add core tests for placeholders/page loading/range fetch/error + retry.
-2. Add dedicated Storybook page-aware validation story with request telemetry.
-3. Align package exports/scripts and document monorepo workflows.
-4. Tie rendered row height to configured virtualization item size.
-
-### P2 (hardening)
-
-1. Optimize selection and flattening computations with memoization/versioned caches.
-2. Reduce API overexposure in `@tree-explorer` and formalize stable public surface.
-3. Bring Lit wrapper closer to shared orchestration contracts or document as limited POC.
-4. Consider build/task cache tooling only after root scripts are stable.
-
-## 5) Assumptions for Implementation
-
-- No breaking changes to existing high-level component inputs/outputs unless migration notes are provided.
-- Context menu stays centralized at container level.
-- Adapter remains the sole place for domain-specific logic.
-- Pagination support is additive and opt-in per adapter/node.
+1. Add index-assisted filtering strategy for very large loaded sets.
+2. Evaluate query analytics hooks for product observability.

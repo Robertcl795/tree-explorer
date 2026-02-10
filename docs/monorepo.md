@@ -8,6 +8,7 @@ This workspace is configured for a single root entrypoint using `pnpm` workspace
 - Single script entrypoint: run `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm storybook` from repo root.
 - Consistent dependency graph and lockfile behavior.
 - Workspace orchestration with `pnpm -r` and `--filter`.
+- Explicit platform baseline: Angular `19.2.x` across workspace packages.
 
 ## Workspace Layout
 
@@ -32,6 +33,18 @@ Rationale:
 - `node-linker=hoisted` gives a more single-project-like `node_modules` layout while still using pnpm’s content-addressed store.
 - `shared-workspace-lockfile=true` keeps one lockfile for deterministic CI.
 - `strict-peer-dependencies=true` catches dependency contract drift early.
+
+## Platform Baseline
+
+- Angular baseline: `19.2.x`
+- Node baseline: `>=18`
+- pnpm baseline: `9.x`
+
+Upgrade policy:
+
+1. Keep docs and package manifests aligned with baseline version.
+2. Evaluate Angular 20 stable APIs in controlled branches first.
+3. Promote baseline only after `typecheck`, `storybook:build`, and docs checks pass.
 
 ## Root Scripts
 

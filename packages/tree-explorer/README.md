@@ -2,6 +2,8 @@
 
 Angular wrapper for `@tree-core` with virtualized rendering, adapter-driven behavior, and container-level action/menu orchestration.
 
+Baseline: Angular `19.2.x` in this workspace.
+
 ## Architectural Role
 
 - `TreeExplorerComponent`

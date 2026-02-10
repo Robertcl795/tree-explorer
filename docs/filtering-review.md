@@ -1,190 +1,148 @@
 # Filtering Review
 
-## Scope
+Date: 2026-02-10
+Scope: `@tree-core`, `@tree-explorer`, `@lit-tree-explorer`
 
-This review covers current filtering behavior in:
+## Executive Summary
 
-- `@tree-core` (`TreeEngine`, adapter contract, flattening pipeline)
-- `@tree-explorer` (Angular wrapper/service state flow)
-- `@lit-tree-explorer` (POC parity check)
+Filtering is now a first-class core contract and no longer wrapper-only behavior.
 
-Cross-reference for proposed target model: `docs/architecture.md#proposed-filtering-model`.
+Implemented:
 
-## Filtering Architecture (Current)
+- `TreeEngine.setFilter(filterQuery)`
+- `TreeEngine.clearFilter()`
+- `TreeEngine.reapplyFilter(adapter)`
+- `TreeEngine.getFilteredFlatList(adapter, config)`
+- Adapter extension points:
+  - `matches(data, query)`
+  - `getSearchText(data)`
+  - `highlightRanges(label, query)`
 
-Filtering is currently a row visibility gate owned by the adapter:
+Backward compatibility preserved:
 
-- Domain-aware rule: `TreeAdapter.isVisible(data)`.
-- Execution point: `TreeEngine.getVisibleRows()` and `getRowViewModelsById()`.
-- Trigger model: recomputation on tree state version changes (expand/select/load/config/adapter updates), not on a dedicated filter query input.
-
-Flow today:
-
-1. Host component updates `adapter`, `data`, or config.
-2. `TreeStateService` updates internal signals and bumps state version.
-3. `TreeEngine` flattens expanded graph (`flattenTree`) and maps rows.
-4. `adapter.isVisible(data)` is evaluated per row; rows returning `false` are skipped.
-5. Angular viewport uses `visibleRows()` for render range and page-aware loading orchestration.
-
-Notes:
-
-- There is no `filter$`, `filterSignal`, `setFilter`, or `applyFilter` API.
-- Placeholders are always included in visible rows (virtualization integrity).
-- Pinned rows are resolved by ID and can still be rendered even when row `visible` is `false`.
+- `adapter.isVisible` is still supported.
+- `getVisibleRows()` delegates to the filtered row pipeline.
 
 ## A) Current Design Summary
 
 ### Where filtering is implemented
 
-- Core:
-  - `TreeAdapter.isVisible(data)` contract
-  - `TreeEngine.getVisibleRows()` visibility check
-- Angular:
-  - No independent filtering pipeline in `TreeExplorerComponent` or `TreeStateService`
-- Lit POC:
-  - Same engine behavior; no wrapper-specific query model
+- Core engine:
+  - query normalization
+  - row visibility derivation
+  - optional policies (ancestor visibility, auto-expand, selection pruning)
+- Angular wrapper:
+  - `filterQuery` input forwards to service/engine
+- Lit wrapper:
+  - `filterQuery` property forwards to engine for parity
 
-### Kinds of filtering that exist today
+### Filtering modes currently available
 
-- Exists:
-  - Single-row boolean predicate (`isVisible`)
-- Not built-in:
-  - text query model
-  - multi-field or structured criteria
-  - fuzzy matching
-  - hierarchical match propagation (parent/descendant semantics)
-  - match highlighting
-  - auto-expand to matches
+- Client-side filtering over loaded nodes
+- Hybrid filtering mode:
+  - core filters loaded nodes, wrappers may trigger deeper fetch strategies
+- Server-side mode:
+  - adapter/API owns query execution, engine keeps baseline visibility and row orchestration
+- Structured query shape:
+  - text
+  - tokens
+  - exact/contains mode
+  - case sensitivity
+- Hierarchical rendering policy:
+  - show ancestors of matched descendants (configurable)
+- Optional highlight metadata:
+  - adapter-provided or default text highlight
 
 ### Sync vs async
 
-- Current filtering is synchronous and per-row.
-- Async filtering is only possible indirectly by reloading data through `loadChildren` or replacing sources.
+- Matching pipeline is synchronous in core.
+- Data loading remains async through adapter `loadChildren`.
+- Server-side behavior is now explicit via `filtering.mode='server'`.
 
-### What is being filtered
+### What is filtered
 
-- Filter applies to row view-model production (`TreeRowViewModel`) after node flattening.
-- It does not pre-filter the node graph itself.
-- It does not alter expand/collapse state directly.
+- Filtering applies to flattened `TreeNode` state and emits filtered `TreeRowViewModel[]`.
+- Placeholder handling remains virtualization-safe and policy-aware.
 
 ## B) Complexity Assessment
 
-### Sources of complexity
+### Primary complexity sources
 
-- Hidden multi-layer behavior:
-  - `flattenTree` decides structural visibility by expansion state.
-  - `adapter.isVisible` decides semantic visibility later during row mapping.
-  - Result: two visibility concepts with no explicit contract between them.
-- No filter state in engine:
-  - Query lifecycle is external and implicit.
-  - Consumers must force recomputation by swapping adapter/config/data.
-- Duplication risk:
-  - Consumers can implement filtering in adapters, data preprocessing, or wrapper host code with inconsistent outcomes.
-- Recompute cost:
-  - `flattenTree` + row mapping + adapter callbacks run on each relevant state bump (selection/expand/load included).
-- Extension friction:
-  - Adapter predicate has no query context type.
-  - No built-in place for fuzzy scoring, tokenization, or highlight metadata.
-- Virtualization coupling risk:
-  - Filtering behavior can indirectly impact range loading if visible list changes without an explicit filter event contract.
+- Dual compatibility model:
+  - legacy `isVisible`
+  - new query pipeline (`matches`/`getSearchText`)
+- Policy interactions:
+  - `showParentsOfMatches`
+  - `autoExpandMatches`
+  - `selectionPolicy`
+- Large-tree recomputation:
+  - flattened traversal and matching are still O(n) per query/state refresh.
 
-### Ease to add new capabilities (1 = hard, 5 = easy)
+### Ease of adding capabilities (1 = hard, 5 = easy)
 
-| Capability | Score | Why |
+| Capability | Score | Notes |
 | --- | --- | --- |
-| Simple text search | 2/5 | Possible through adapter closure + host-triggered recompute, but no first-class query API |
-| Multi-criteria filters | 1/5 | No typed filter model or composable criteria contract |
-| Server-side filtering | 2/5 | Feasible via adapter/API and data reset, but no standardized core lifecycle |
-| Fuzzy search | 1/5 | No scoring contract and no query/index abstraction |
-| Highlight matches | 1/5 | Row model has no match metadata channel |
-| Auto-expand to matches | 1/5 | Requires custom traversal/orchestration outside current filtering path |
+| Simple text search | 4/5 | Core contract implemented; wrapper input available |
+| Multi-criteria filters | 3/5 | Query shape exists; richer field semantics still adapter-defined |
+| Server-side filtering | 4/5 | Explicit mode contract exists; cookbook examples still needed |
+| Fuzzy search | 2/5 | Needs ranking/scoring contract and ordering policy |
+| Highlight matches | 4/5 | Built-in metadata channel available |
+| Auto-expand to matches | 4/5 | Config policy implemented |
 
 ## C) Shortcomings and Risks
 
-### Correctness risks
+### Correctness and UX risks
 
-- Parent/descendant semantics are undefined:
-  - A hidden parent can still have visible descendants if already expanded.
-  - A matching descendant under a collapsed ancestor will remain hidden.
-- Selection consistency:
-  - Selected IDs can include filtered-out nodes.
-  - `selectionChange` emits selected nodes regardless of visibility.
-- Pinned rows mismatch:
-  - Pinned rows are fetched by ID and rendered without filtering gate.
-- Navigation/focus stability:
-  - No keyboard navigation contract is documented for filtering transitions; focus behavior under dynamic visibility changes is unspecified.
+- Hidden selection behavior is policy-dependent:
+  - `keep` mode can retain selected IDs outside current filter view.
+- Ancestor visibility only applies to loaded node graph:
+  - unloaded descendants cannot influence visibility until loaded.
 
-### Performance risks (large trees)
+### Performance risks
 
-- O(n) scans and allocations on each recompute:
-  - flattening + view-model mapping + adapter calls per row.
-- Per-keystroke strategy gap:
-  - No built-in debounce/cancel/incremental filtering lifecycle.
-- Potential virtualization mismatch:
-  - If filtering is driven externally without explicit state sync, rendered range/load decisions can lag or thrash.
+- Matching remains full traversal per recompute.
+- No built-in debounce/throttle/cancellation in wrapper layer.
+- No index-based acceleration for repeated query updates.
 
-### API/architecture risks
+### API risks
 
-- Extension points are unclear:
-  - `isVisible` is too narrow for modern filtering requirements.
-- Adapter ownership is under-specified:
-  - Domain matching is in adapter, but query state and orchestration currently have no home.
-- Public API gap:
-  - No canonical filter contract in `@tree-core`, so wrapper/consumer behavior can diverge.
+- Fuzzy-ranking and secondary ordering contracts are not defined.
+- Hybrid mode fetch orchestration is still wrapper-owned and not a strict core loading policy yet.
 
 ## D) Recommendations (Prioritized)
 
-### P0 (must)
+### P0
 
-1. Define and document a core filter contract in `@tree-core`:
-   - `setFilter(filterQuery)`, `clearFilter()`, `getFilteredFlatList()`.
-2. Keep adapter as the only domain-aware layer:
-   - add typed adapter extension point (`getSearchText` or `matches`).
-3. Document deterministic behavior flags:
-   - parent visibility by descendant match,
-   - auto-expand policy,
-   - selection policy under active filtering.
-4. Preserve backward compatibility:
-   - treat `adapter.isVisible` as legacy predicate mode with deprecation guidance.
+1. Document server-side and hybrid cookbook patterns in Storybook/docs.
+2. Add integration tests for policy combinations with pagination placeholders.
+3. Add wrapper-level debounce/cancel guidance and defaults.
 
-### P1 (should)
+### P1
 
-1. Add incremental filtering controls:
-   - debounce window, stale computation cancellation.
-2. Add row match metadata channel:
-   - optional highlight ranges to avoid UI-side re-parsing.
-3. Add tests focused on correctness boundaries:
-   - collapsed ancestor + descendant match
-   - selection with filtered-out nodes
-   - paged placeholders under active filtering
+1. Add incremental filtering controls (debounce/cancel) at wrapper/service level.
+2. Add optional filter indexes for high-frequency query updates.
+3. Add explicit server-side mode examples in Storybook.
 
-### P2 (nice-to-have)
+### P2
 
-1. Add hybrid filtering mode:
-   - loaded-node filter with optional deeper match loading strategy.
-2. Add fuzzy ranking extension:
-   - adapter-owned ranking keys with stable sort contract.
-3. Add wrapper parity targets:
-   - align Angular and Lit wrappers on filter contract behavior.
+1. Define fuzzy scoring/ranking extension points.
+2. Add query metrics hooks for profiling.
+3. Add hybrid loaded+fetch mode design if needed by product requirements.
 
 ## Contract Test Matrix
 
-The following scenarios should remain covered as the filtering contract evolves:
+Required scenarios:
 
-1. Query matching with ancestor visibility:
-   - when a descendant matches, loaded ancestors remain visible when `showParentsOfMatches` is enabled.
-2. Adapter-owned matching:
-   - `adapter.matches(data, query)` overrides default label/search-text matching.
-3. Highlight metadata:
-   - matched rows can surface highlight ranges through adapter or default text matching.
-4. Auto-expand behavior:
-   - when `autoExpandMatches` is enabled, ancestor paths for loaded matches are expanded.
-5. Selection policy:
-   - when `selectionPolicy = clearHidden`, selections not visible in filtered rows are pruned.
-6. Legacy compatibility:
-   - `adapter.isVisible` remains a baseline gate even when filter query is active.
+1. Descendant match keeps ancestors visible when configured.
+2. Adapter `matches` overrides default text matching.
+3. Highlight ranges are emitted for matched rows.
+4. `autoExpandMatches` expands ancestor path for loaded matches.
+5. `selectionPolicy=clearHidden` prunes filtered-out selections.
+6. Legacy `isVisible` remains baseline gate.
+7. `selectRange(..., adapter, config)` uses filtered row order when context is provided.
+8. `filtering.mode='server'` skips client-side match filtering and highlight emission.
 
-Reference implementation tests:
+Reference tests:
 
 - `packages/tree-core/src/lib/engine/tree-engine.spec.ts`
 - `packages/tree-explorer/src/lib/components/tree-explorer/tree-explorer.component.spec.ts`
