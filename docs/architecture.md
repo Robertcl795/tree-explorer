@@ -12,22 +12,22 @@
 
 ```mermaid
 flowchart LR
-  subgraph App
-    DS[Domain Data Source]
-    ADP[TreeAdapter]
+  subgraph APP["Host Application"]
+    DS["Domain Data Source"]
+    ADP["TreeAdapter"]
   end
 
-  subgraph Core[@tree-core]
-    ENG[TreeEngine]
-    CFG[TreeConfig]
-    TYPES[TreeNode / TreeRowViewModel]
+  subgraph CORE["tree-core"]
+    ENG["TreeEngine"]
+    CFG["TreeConfig"]
+    TYPES["TreeNode and TreeRowViewModel"]
   end
 
-  subgraph Angular[@tree-explorer]
-    C[TreeExplorerComponent]
-    S[TreeStateService]
-    R[TreeItemComponent]
-    VS[CDK Virtual Scroll]
+  subgraph ANGULAR["tree-explorer Angular wrapper"]
+    C["TreeExplorerComponent"]
+    S["TreeStateService"]
+    R["TreeItemComponent"]
+    VS["CDK Virtual Scroll"]
   end
 
   DS --> ADP
@@ -38,7 +38,7 @@ flowchart LR
   TYPES --> C
   C --> VS
   VS --> R
-  C -->|container-level menu/actions| C
+  C -->|"Container-level actions"| C
 ```
 
 ## I/O Contracts
@@ -75,26 +75,26 @@ sequenceDiagram
   participant API as Backend API
 
   U->>C: Expand parent node
-  C->>S: toggleExpand(row)
-  S->>E: setPagination(parentId, pageSize)
-  S->>E: toggleExpand(parentId, canLoadChildren)
-  S->>E: markPageInFlight(parentId, 0)
-  S->>A: loadChildren(parent, page 0)
-  A->>API: GET /children?page=0&size=N
-  API-->>A: items + X-Total-Count
-  A-->>S: PageResult(items,totalCount)
-  S->>E: applyPagedChildren(page0,totalCount)
+  C->>S: toggleExpand row
+  S->>E: setPagination parentId and pageSize
+  S->>E: toggleExpand parentId
+  S->>E: markPageInFlight parentId page 0
+  S->>A: loadChildren parent page 0
+  A->>API: Request page 0
+  API-->>A: items and totalCount
+  A-->>S: page result
+  S->>E: applyPagedChildren page 0
   E-->>C: visible rows include placeholders
 
-  C->>S: ensureRangeLoaded(start,end) on viewport range change
-  S->>E: ensureRangeLoaded(parentId, childRange)
-  E-->>S: missing page indices (deduped)
+  C->>S: ensureRangeLoaded on viewport updates
+  S->>E: ensureRangeLoaded parent child range
+  E-->>S: deduped missing pages
   loop per page
-    S->>A: loadChildren(parent,pageK)
-    A->>API: GET /children?page=K&size=N
-    API-->>A: items + totalCount
-    A-->>S: PageResult
-    S->>E: applyPagedChildren(pageK)
+    S->>A: loadChildren next page
+    A->>API: Request page K
+    API-->>A: items and totalCount
+    A-->>S: page result
+    S->>E: applyPagedChildren page K
   end
   E-->>C: placeholders replaced in-place
 ```
@@ -103,24 +103,93 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  A[init(nodes)] --> B[getVisibleRows]
-  C[toggleExpand] --> D{children known?}
-  D -- no --> E[mark loading]
-  E --> F[wrapper loads children]
-  F --> G[setChildrenLoaded]
+  A["init nodes"] --> B["getVisibleRows"]
+  C["toggleExpand"] --> D{"Children known"}
+  D -- no --> E["mark loading"]
+  E --> F["wrapper loads children"]
+  F --> G["setChildrenLoaded"]
 
-  H[setPagination] --> I[markPageInFlight]
-  I --> J[applyPagedChildren]
-  J --> K[fixed-length childrenIds]
+  H["setPagination"] --> I["markPageInFlight"]
+  I --> J["applyPagedChildren"]
+  J --> K["fixed length children list"]
   K --> B
 
-  L[ensureRangeLoaded] --> M[missing pages only]
+  L["ensureRangeLoaded"] --> M["missing pages only"]
   M --> I
 
-  N[setPageError/clearPageError] --> B
-  O[selection APIs] --> B
-  P[expandPath] --> B
+  N["setPageError and clearPageError"] --> B
+  O["selection APIs"] --> B
+  P["expandPath"] --> B
 ```
+
+## Filtering Architecture (Current)
+
+Current filtering is an adapter-owned visibility predicate, not a query pipeline:
+
+- Filtering logic lives in `adapter.isVisible(data)`.
+- `TreeEngine.getVisibleRows()` calls `adapter.isVisible` per non-placeholder row and skips rows that return `false`.
+- No filter input exists in `TreeEngine`, `TreeStateService`, or `TreeExplorerComponent` (`setFilter`, `filterSignal`, and query state are absent).
+- Placeholders always remain visible to preserve virtualization geometry.
+
+Data flow today:
+
+1. Host app updates adapter/data (often via new adapter object or rebuilt source data).
+2. `TreeStateService` bumps version and recomputes `visibleRows`.
+3. `TreeEngine` flattens expanded nodes, then applies `adapter.isVisible` while building row view models.
+4. Virtual scroll renders that derived list and triggers range loading from rendered rows.
+
+## Proposed Filtering Model
+
+### Modes
+
+- Client-side mode:
+  - Evaluate filters over currently loaded nodes only.
+- Hybrid mode:
+  - Filter loaded nodes first, with optional adapter-triggered deep loading for likely matches.
+- Server-side mode:
+  - Adapter/API returns already-filtered children, including pagination metadata.
+
+### Scope
+
+- Row predicate (fast path):
+  - `nodeVisible(node, filterCtx)` for cheap checks over already-loaded data.
+- Structured query (tree-level):
+  - `FilterQuery` with text, tokens, fields, and flags.
+- Adapter extension points:
+  - `getSearchText(domain)` or `matches(domain, query)`.
+  - Optional `highlightRanges(label, query)`.
+
+### Behavior Decisions (Configurable)
+
+- Include parent rows when any descendant matches.
+- Auto-expand ancestor chain for matching descendants.
+- Selection policy during filtering:
+  - keep selection,
+  - clear filtered-out selection,
+  - keep selection but disable actions on hidden rows.
+- Incremental evaluation:
+  - debounce input,
+  - cancel stale async work,
+  - bound recomputation to changed subtrees where possible.
+
+### Core Contract Recommendation
+
+Introduce a core-level filter contract while preserving existing adapter visibility hooks:
+
+- `setFilter(filterQuery)`
+- `clearFilter()`
+- `getFilteredFlatList()`
+
+Backward-compatible migration path:
+
+1. Keep `adapter.isVisible(data)` supported.
+2. Treat legacy `isVisible` as an implicit filter predicate when no `FilterQuery` is configured.
+3. Deprecate direct UI-layer filtering patterns after equivalent core APIs exist.
+
+## References
+
+- Filtering assessment and risks: `docs/filtering-review.md`
+- Delivery roadmap and adapter techniques: `docs/next-steps.md`
 
 ## Performance Design Rules
 
