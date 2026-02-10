@@ -4,8 +4,8 @@ import { TreeExplorerComponent } from './tree-explorer.component';
 import { SELECTION_MODES, TreeAdapter, TreeConfig } from '@tree-core';
 
 describe('TreeExplorerComponent', () => {
-  let component: TreeExplorerComponent;
-  let fixture: ComponentFixture<TreeExplorerComponent>;
+  let component: TreeExplorerComponent<any, any>;
+  let fixture: ComponentFixture<TreeExplorerComponent<any, any>>;
   let adapter: TreeAdapter<{ id: string; name: string; children?: any[] }>;
 
   const data = [
@@ -25,7 +25,7 @@ describe('TreeExplorerComponent', () => {
       imports: [TreeExplorerComponent, NoopAnimationsModule],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(TreeExplorerComponent);
+    fixture = TestBed.createComponent(TreeExplorerComponent<any, any>);
     component = fixture.componentInstance;
 
     adapter = {
@@ -34,9 +34,9 @@ describe('TreeExplorerComponent', () => {
       getChildren: (dataItem) => dataItem.children,
     };
 
-    component.adapter.set(adapter);
-    component.config.set(config);
-    component.data.set(data);
+    fixture.componentRef.setInput('adapter', adapter);
+    fixture.componentRef.setInput('config', config);
+    fixture.componentRef.setInput('data', data);
     fixture.detectChanges();
   });
 
@@ -54,11 +54,11 @@ describe('TreeExplorerComponent', () => {
   });
 
   it('applies filter query through the tree state service', () => {
-    component.filterQuery.set('missing');
+    fixture.componentRef.setInput('filterQuery', 'missing');
     fixture.detectChanges();
     expect(component.visibleRows().length).toBe(0);
 
-    component.filterQuery.set(null);
+    fixture.componentRef.setInput('filterQuery', null);
     fixture.detectChanges();
     expect(component.visibleRows().length).toBe(1);
   });

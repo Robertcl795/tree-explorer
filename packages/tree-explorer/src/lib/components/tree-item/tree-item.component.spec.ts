@@ -36,8 +36,8 @@ describe('TreeItemComponent', () => {
       data: { id: 'root', name: 'Root' },
     };
 
-    component.row.set(row);
-    component.display.set({
+    fixture.componentRef.setInput('row', row);
+    fixture.componentRef.setInput('display', {
       indentPx: 24,
       density: TREE_DENSITY.NORMAL,
       showIcons: true,
