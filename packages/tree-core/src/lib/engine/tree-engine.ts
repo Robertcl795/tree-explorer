@@ -70,7 +70,7 @@ import {
   shouldApplyClientFiltering,
 } from './visibility';
 
-export { TreePagedNodeDebugState, TreeStats } from './types';
+export type { TreePagedNodeDebugState, TreeStats } from './types';
 
 export class TreeEngine<T> {
   private state: TreeState<T> = createInitialTreeState<T>();

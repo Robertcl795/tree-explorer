@@ -9,8 +9,8 @@
 3. Keep context-menu actions centralized in `TreeExplorerComponent`.
 4. If targets may be unloaded, implement `adapter.resolvePathToNode`.
 5. Validate with Storybook:
-   - `Tree/Cookbook`
-   - `Tree/Cookbook/Errors & edge cases`
+   - `Tree/Basic Usage`
+   - `Tree/Errors & edge cases`
 
 ```ts
 const config: Partial<TreeConfig<Node>> = {
@@ -130,7 +130,7 @@ sequenceDiagram
 - Static shortcuts only:
   - use `entries` without store.
 - Storybook references:
-  - `packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.advanced.stories.ts`
   - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
 
 ## 7) Non-goals / pitfalls

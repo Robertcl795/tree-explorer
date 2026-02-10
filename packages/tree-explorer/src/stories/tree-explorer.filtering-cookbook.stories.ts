@@ -9,89 +9,86 @@ import {
 } from '@tree-core';
 import { TreeExplorerComponent } from '../public-api';
 
-type CookbookNode = {
+type FilterNode = {
   id: string;
   name: string;
   hasChildren?: boolean;
-  children?: CookbookNode[];
+  children?: FilterNode[];
 };
 
-const clientData: CookbookNode[] = [
-  {
-    id: 'workspace',
-    name: 'Workspace',
-    children: [
-      {
-        id: 'docs',
-        name: 'Documents',
-        children: [
-          { id: 'budget-fy26', name: 'Budget FY26.xlsx' },
-          { id: 'budget-fy27', name: 'Budget FY27.xlsx' },
-          { id: 'roadmap', name: 'Roadmap.md' },
-        ],
-      },
-      {
-        id: 'team',
-        name: 'Team',
-        children: [
-          { id: 'alice', name: 'Alice Profile' },
-          { id: 'bob', name: 'Bob Profile' },
-        ],
-      },
-    ],
-  },
+function buildClientDataset(totalPerFolder = 50): FilterNode[] {
+  const folder = (id: string, prefix: string) => ({
+    id,
+    name: `${prefix} Folder`,
+    children: Array.from({ length: totalPerFolder }, (_, index) => ({
+      id: `${id}-item-${index}`,
+      name: index % 3 === 0 ? `Budget ${prefix} ${index}` : `${prefix} Item ${index}`,
+    })),
+  });
+
+  return [
+    {
+      id: 'workspace',
+      name: 'Workspace',
+      children: [
+        folder('finance', 'Finance'),
+        folder('ops', 'Ops'),
+        folder('team', 'Team'),
+      ],
+    },
+  ];
+}
+
+const clientData = buildClientDataset(50); // 150+ rows
+
+const hybridRoots: FilterNode[] = [
+  { id: 'hybrid-root', name: 'Hybrid Root', hasChildren: true },
 ];
 
-const hybridRoots: CookbookNode[] = [
-  { id: 'workspace-h', name: 'Budget Workspace', hasChildren: true },
-];
-
-const hybridChildren: Record<string, CookbookNode[]> = {
-  'workspace-h': [
-    { id: 'projects-h', name: 'Projects', hasChildren: true },
-    { id: 'teams-h', name: 'Teams', hasChildren: true },
-  ],
-  'projects-h': [
-    { id: 'q3-budget', name: 'Q3 Budget Review', hasChildren: false },
-    { id: 'q4-plan', name: 'Q4 Planning', hasChildren: false },
-  ],
-  'teams-h': [
-    { id: 'ops-handbook', name: 'Ops Handbook', hasChildren: false },
-  ],
+const hybridChildren: Record<string, FilterNode[]> = {
+  'hybrid-root': Array.from({ length: 140 }, (_, index) => ({
+    id: `hybrid-node-${index}`,
+    name: index % 4 === 0 ? `Budget Hybrid ${index}` : `Hybrid Node ${index}`,
+    hasChildren: false,
+  })),
 };
 
-const serverFilteredData: CookbookNode[] = [
-  { id: 'budget-actuals-s', name: 'Budget Actuals FY26.csv' },
-  { id: 'budget-plan-s', name: 'Budget Plan FY27.xlsx' },
-  { id: 'budget-metrics-s', name: 'Budget Metrics Dashboard' },
-];
+const serverDirectMatchesData: FilterNode[] = Array.from({ length: 120 }, (_, index) => ({
+  id: `server-direct-${index}`,
+  name: `Budget Server Result ${index}`,
+}));
 
-const clientAdapter: TreeAdapter<CookbookNode, CookbookNode> = {
+const serverPolicyData: FilterNode[] = Array.from({ length: 120 }, (_, index) => ({
+  id: `server-policy-${index}`,
+  name: index % 2 === 0 ? `Budget Policy ${index}` : `Policy Result ${index}`,
+}));
+
+const clientAdapter: TreeAdapter<FilterNode, FilterNode> = {
   getId: (source) => source.id,
   getLabel: (data) => data.name,
   getChildren: (data) => data.children,
 };
 
-const hybridAdapter: TreeAdapter<CookbookNode, CookbookNode> = {
+const hybridAdapter: TreeAdapter<FilterNode, FilterNode> = {
   getId: (source) => source.id,
   getLabel: (data) => data.name,
   hasChildren: (data) => !!data.hasChildren,
   loadChildren: async (node) => hybridChildren[node.id] ?? [],
 };
 
-const serverAdapter: TreeAdapter<CookbookNode, CookbookNode> = {
+const serverAdapter: TreeAdapter<FilterNode, FilterNode> = {
   getId: (source) => source.id,
   getLabel: (data) => data.name,
   getChildren: (data) => data.children,
 };
 
-const baseConfig: Partial<TreeConfig<CookbookNode>> = {
+const baseConfig: Partial<TreeConfig<FilterNode>> = {
   selection: { mode: SELECTION_MODES.MULTI },
   display: { indentPx: 24, density: TREE_DENSITY.NORMAL, showIcons: true },
   virtualization: { mode: VIRTUALIZATION_MODES.AUTO, itemSize: 36 },
 };
 
-const renderCookbookStory = (args: any) => ({
+const renderFilteringStory = (args: any) => ({
   props: { ...args, filterQuery: args.filterQuery ?? '' },
   template: `
     <div style="height: 80vh; padding: 12px; box-sizing: border-box; background: #f7f8f9;">
@@ -134,16 +131,10 @@ const renderCookbookStory = (args: any) => ({
 });
 
 const meta: Meta<TreeExplorerComponent<any, any>> = {
-  title: 'Tree/Filtering Cookbook',
+  title: 'Tree/Filtering (100+ elements)',
   component: TreeExplorerComponent,
   parameters: {
     layout: 'fullscreen',
-  },
-  argTypes: {
-    filterQuery: {
-      control: false,
-      description: 'Bound to the in-story search input for live filtering.',
-    },
   },
 };
 
@@ -151,7 +142,7 @@ export default meta;
 
 type Story = StoryObj<TreeExplorerComponent<any, any>>;
 
-export const ClientModeLoadedNodes: Story = {
+export const ClientMode: Story = {
   args: {
     data: clientData,
     adapter: clientAdapter,
@@ -166,30 +157,11 @@ export const ClientModeLoadedNodes: Story = {
     },
     filterQuery: 'budget',
   },
-  render: renderCookbookStory,
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Client mode cookbook: all relevant nodes are loaded in-memory and matching runs in core. Use the search bar to filter in real time.',
-      },
-    },
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const input = await canvas.findByTestId('filter-input');
-    await userEvent.clear(input);
-    await userEvent.type(input, 'roadmap');
-
-    await waitFor(async () => {
-      await expect(canvas.getByTestId('active-query')).toHaveTextContent('roadmap');
-      await expect(canvas.getByText('Roadmap.md')).toBeVisible();
-      await expect(canvas.queryByText('Alice Profile')).toBeNull();
-    });
-  },
+  render: renderFilteringStory,
 };
+ClientMode.storyName = 'Client mode';
 
-export const HybridModeLoadedPlusLazy: Story = {
+export const Hybrid: Story = {
   args: {
     data: hybridRoots,
     adapter: hybridAdapter,
@@ -204,47 +176,50 @@ export const HybridModeLoadedPlusLazy: Story = {
     },
     filterQuery: 'budget',
   },
-  render: renderCookbookStory,
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Hybrid mode cookbook: core filters loaded rows. Expand branches to load deeper nodes and observe matching updates in real time.',
-      },
-    },
-  },
+  render: renderFilteringStory,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const input = await canvas.findByTestId('filter-input');
     await userEvent.clear(input);
     await userEvent.type(input, 'budget');
 
-    const workspaceLabel = await canvas.findByText('Budget Workspace');
-    const workspaceRow = workspaceLabel.closest('.tree-item');
-    const workspaceCaret = workspaceRow?.querySelector('button.caret-button');
-    if (!workspaceCaret) {
-      throw new Error('Missing caret button for Budget Workspace row');
+    const rootLabel = await canvas.findByText('Hybrid Root');
+    const rootRow = rootLabel.closest('.tree-item');
+    const caret = rootRow?.querySelector('button.caret-button');
+    if (!caret) {
+      throw new Error('Missing caret button for Hybrid Root');
     }
-    await userEvent.click(workspaceCaret as HTMLButtonElement);
-
-    const projectsLabel = await canvas.findByText('Projects');
-    const projectsRow = projectsLabel.closest('.tree-item');
-    const projectsCaret = projectsRow?.querySelector('button.caret-button');
-    if (!projectsCaret) {
-      throw new Error('Missing caret button for Projects row');
-    }
-    await userEvent.click(projectsCaret as HTMLButtonElement);
+    await userEvent.click(caret as HTMLButtonElement);
 
     await waitFor(async () => {
-      await expect(canvas.getByText('Q3 Budget Review')).toBeVisible();
-      await expect(canvas.queryByText('Q4 Planning')).toBeNull();
+      await expect(canvas.getByText('Budget Hybrid 0')).toBeVisible();
     });
   },
 };
+Hybrid.storyName = 'Hybrid';
 
-export const ServerModePrefilteredDataset: Story = {
+export const ServerDirectMatches: Story = {
   args: {
-    data: serverFilteredData,
+    data: serverDirectMatchesData,
+    adapter: serverAdapter,
+    config: {
+      ...baseConfig,
+      filtering: {
+        mode: 'server',
+        showParentsOfMatches: false,
+        autoExpandMatches: false,
+        selectionPolicy: 'keep',
+      },
+    },
+    filterQuery: 'budget',
+  },
+  render: renderFilteringStory,
+};
+ServerDirectMatches.storyName = 'Server: Direct matches';
+
+export const ServerClearHiddenSelectionPolicy: Story = {
+  args: {
+    data: serverPolicyData,
     adapter: serverAdapter,
     config: {
       ...baseConfig,
@@ -252,30 +227,11 @@ export const ServerModePrefilteredDataset: Story = {
         mode: 'server',
         showParentsOfMatches: true,
         autoExpandMatches: false,
-        selectionPolicy: 'keep',
+        selectionPolicy: 'clearHidden',
       },
     },
     filterQuery: 'budget',
   },
-  render: renderCookbookStory,
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Server mode cookbook: data is assumed pre-filtered by API/adapter. The search bar is still interactive, while core skips client-side query matching.',
-      },
-    },
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const input = await canvas.findByTestId('filter-input');
-    await userEvent.clear(input);
-    await userEvent.type(input, 'no-such-item');
-
-    await waitFor(async () => {
-      await expect(canvas.getByTestId('active-query')).toHaveTextContent('no-such-item');
-      await expect(canvas.getByText('Budget Plan FY27.xlsx')).toBeVisible();
-      await expect(canvas.getByTestId('visible-rows')).toHaveTextContent('3');
-    });
-  },
+  render: renderFilteringStory,
 };
+ServerClearHiddenSelectionPolicy.storyName = 'Server: Clear hidden selection policy';

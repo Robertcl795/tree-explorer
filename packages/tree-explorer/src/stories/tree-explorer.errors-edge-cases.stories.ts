@@ -412,7 +412,7 @@ class PinnedNavigationEdgeStoryComponent {
 }
 
 const meta: Meta = {
-  title: 'Tree/Cookbook/Errors & edge cases',
+  title: 'Tree/Errors & edge cases',
   component: TreeExplorerComponent,
   parameters: {
     layout: 'fullscreen',

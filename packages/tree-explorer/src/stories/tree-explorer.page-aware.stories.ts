@@ -31,7 +31,7 @@ type ChildNode = {
 
 type DomainNode = RootNode | ChildNode;
 
-const TOTAL_CHILDREN = 1000;
+const TOTAL_CHILDREN = 10000;
 const PAGE_SIZE = 50;
 const ROOT_ID = 'catalog';
 
@@ -110,7 +110,7 @@ class PageAwareVirtualScrollStoryComponent {
   public readonly tree = viewChild<TreeExplorerComponent<DomainNode, DomainNode>>('tree');
 
   public readonly roots: RootNode[] = [
-    { id: ROOT_ID, name: 'Remote catalog (1000 rows)', hasChildren: true },
+    { id: ROOT_ID, name: 'Remote catalog (10000 rows)', hasChildren: true },
   ];
 
   public readonly requestedPages = signal<number[]>([]);
@@ -211,7 +211,7 @@ class PageAwareVirtualScrollStoryComponent {
 }
 
 const meta: Meta<PageAwareVirtualScrollStoryComponent> = {
-  title: 'Tree/Page-aware virtual scroll (X-Total-Count)',
+  title: 'Tree/Virtual scroll/Page aware',
   component: PageAwareVirtualScrollStoryComponent,
   parameters: {
     layout: 'fullscreen',
@@ -262,3 +262,4 @@ export const Validation: Story = {
     );
   },
 };
+Validation.storyName = 'Root level (10000 items)';

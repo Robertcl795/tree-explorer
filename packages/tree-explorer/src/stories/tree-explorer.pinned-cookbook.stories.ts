@@ -1,226 +1,257 @@
+import { CommonModule } from '@angular/common';
+import {
+  Component,
+  computed,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { Meta, StoryObj } from '@storybook/angular';
-import { expect, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import {
   SELECTION_MODES,
   TREE_DENSITY,
   TreeAdapter,
   TreeConfig,
+  TreeLoadError,
+  TreeNode,
   TreePinnedEntry,
-  TreePinnedStore,
   VIRTUALIZATION_MODES,
 } from '@tree-core';
 import { TreeExplorerComponent } from '../public-api';
 
-type PinnedNode = {
+type PinnedDemoNode = {
   id: string;
   name: string;
-  icon?: string;
-  children?: PinnedNode[];
+  icon: string;
+  hasChildren: boolean;
 };
 
-const data: PinnedNode[] = [
-  {
-    id: 'workspace',
-    name: 'Workspace',
-    icon: 'folder',
-    children: [
-      {
-        id: 'documents',
-        name: 'Documents',
-        icon: 'folder_open',
-        children: [
-          { id: 'budget-fy26', name: 'Budget FY26.xlsx', icon: 'description' },
-          { id: 'budget-fy27', name: 'Budget FY27.xlsx', icon: 'description' },
-          { id: 'audit-log', name: 'Audit Log.md', icon: 'article' },
-        ],
-      },
-      {
-        id: 'teams',
-        name: 'Teams',
-        icon: 'group',
-        children: [
-          { id: 'team-radar', name: 'Team Radar', icon: 'insights' },
-          { id: 'oncall-rotation', name: 'On-call Rotation', icon: 'schedule' },
-        ],
-      },
-    ],
-  },
-];
+const ROOT_ID = 'workspace';
+const LEVEL1_COUNT = 5;
+const LEVEL2_COUNT = 5;
+const LEVEL3_COUNT = 5;
+const LEVEL4_COUNT = 1;
+const TARGET_PATH = { l1: 4, l2: 4, l3: 4, l4: 0 };
 
-const adapter: TreeAdapter<PinnedNode, PinnedNode> = {
-  getId: (source) => source.id,
-  getLabel: (dataItem) => dataItem.name,
-  getChildren: (dataItem) => dataItem.children,
-  getIcon: (dataItem) => dataItem.icon,
-};
+const level1Id = (l1: number) => `l1-${l1}`;
+const level2Id = (l1: number, l2: number) => `${level1Id(l1)}-l2-${l2}`;
+const level3Id = (l1: number, l2: number, l3: number) => `${level2Id(l1, l2)}-l3-${l3}`;
+const level4Id = (l1: number, l2: number, l3: number, l4: number) => `${level3Id(l1, l2, l3)}-l4-${l4}`;
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const TARGET_ID = level4Id(TARGET_PATH.l1, TARGET_PATH.l2, TARGET_PATH.l3, TARGET_PATH.l4);
+const FAILURE_NODE_ID = level2Id(TARGET_PATH.l1, TARGET_PATH.l2);
+const TOTAL_ITEMS = LEVEL1_COUNT * LEVEL2_COUNT * LEVEL3_COUNT * LEVEL4_COUNT;
 
-const renderCookbook = (args: any) => {
-  const persistedState = {
-    nextId: 200,
-    entries: [
-      { entryId: 'pin-100', nodeId: 'audit-log', label: 'Audit Log.md', icon: 'article', order: 0 },
-      { entryId: 'pin-101', nodeId: 'team-radar', label: 'Team Radar', icon: 'insights', order: 1 },
-    ] as TreePinnedEntry[],
-    calls: [] as string[],
-  };
+const level1Pattern = /^l1-(\d+)$/;
+const level2Pattern = /^l1-(\d+)-l2-(\d+)$/;
+const level3Pattern = /^l1-(\d+)-l2-(\d+)-l3-(\d+)$/;
 
-  const props: any = {
-    ...args,
-    filterQuery: args.filterQuery ?? '',
-    selectedNodeIds: [] as string[],
-    storeCalls: [] as string[],
-    persistedPinnedSnapshot: [] as string[],
-  };
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  const syncDebug = () => {
-    props.persistedPinnedSnapshot = [...persistedState.entries]
-      .sort((left, right) => left.order - right.order)
-      .map((entry) => `${entry.entryId} -> ${entry.nodeId} (order ${entry.order})`);
-    props.storeCalls = [...persistedState.calls];
-  };
+function buildChildren(nodeId: string): PinnedDemoNode[] {
+  if (nodeId === ROOT_ID) {
+    return Array.from({ length: LEVEL1_COUNT }, (_, l1) => ({
+      id: level1Id(l1),
+      name: `Group ${l1}`,
+      icon: 'folder',
+      hasChildren: true,
+    }));
+  }
 
-  const recordCall = (message: string) => {
-    persistedState.calls.push(message);
-    syncDebug();
-  };
+  const level1Match = nodeId.match(level1Pattern);
+  if (level1Match) {
+    const l1 = Number(level1Match[1]);
+    return Array.from({ length: LEVEL2_COUNT }, (_, l2) => ({
+      id: level2Id(l1, l2),
+      name: `Team ${l1}.${l2}`,
+      icon: 'group',
+      hasChildren: true,
+    }));
+  }
 
-  const pinnedStore: TreePinnedStore<PinnedNode> = {
-    loadPinned: async () => {
-      recordCall('GET /pinned');
-      await delay(80);
-      return [...persistedState.entries]
-        .sort((left, right) => left.order - right.order)
-        .map((entry) => ({ ...entry }));
-    },
-    addPinned: async (node) => {
-      recordCall(`POST /pinned nodeId=${node.id}`);
-      await delay(60);
-      const persisted: TreePinnedEntry = {
-        entryId: `pin-${persistedState.nextId++}`,
-        nodeId: node.id,
-        label: node.data.name,
-        icon: node.data.icon,
-        order: persistedState.entries.length,
-      };
-      persistedState.entries = [...persistedState.entries, persisted];
-      syncDebug();
-      return persisted;
-    },
-    removePinned: async (entry) => {
-      recordCall(`DELETE /pinned/${entry.entryId}`);
-      await delay(50);
-      persistedState.entries = persistedState.entries
-        .filter((candidate) => candidate.entryId !== entry.entryId)
-        .map((candidate, index) => ({ ...candidate, order: index }));
-      syncDebug();
-    },
-    reorderPinned: async (entries) => {
-      recordCall(
-        `POST /pinned/reorder [${entries.map((entry) => entry.entryId).join(', ')}]`,
-      );
-      await delay(40);
-      persistedState.entries = entries.map((entry, index) => ({
-        ...entry,
-        order: index,
-      }));
-      syncDebug();
-    },
-  };
+  const level2Match = nodeId.match(level2Pattern);
+  if (level2Match) {
+    const l1 = Number(level2Match[1]);
+    const l2 = Number(level2Match[2]);
+    return Array.from({ length: LEVEL3_COUNT }, (_, l3) => ({
+      id: level3Id(l1, l2, l3),
+      name: `Project ${l1}.${l2}.${l3}`,
+      icon: 'folder_open',
+      hasChildren: true,
+    }));
+  }
 
-  props.onSelectionChange = (event: any) => {
-    props.selectedNodeIds = event.nodes.map((node: any) => node.id);
-  };
+  const level3Match = nodeId.match(level3Pattern);
+  if (level3Match) {
+    const l1 = Number(level3Match[1]);
+    const l2 = Number(level3Match[2]);
+    const l3 = Number(level3Match[3]);
+    return Array.from({ length: LEVEL4_COUNT }, (_, l4) => ({
+      id: level4Id(l1, l2, l3, l4),
+      name: `File ${l1}.${l2}.${l3}.${l4}`,
+      icon: 'description',
+      hasChildren: false,
+    }));
+  }
 
-  props.storyConfig = {
-    ...args.config,
+  return [];
+}
+
+@Component({
+  selector: 'pinned-cookbook-large-story',
+  standalone: true,
+  imports: [CommonModule, TreeExplorerComponent],
+  template: `
+    <div style="display:grid; grid-template-columns: 1fr 360px; gap: 12px; height: 80vh; padding: 12px; box-sizing: border-box; background: #f7f8f9;">
+      <div style="border: 1px solid #d7dce0; border-radius: 10px; overflow: hidden; background: #fff;">
+        <tree-explorer
+          #tree
+          [data]="data"
+          [adapter]="adapter"
+          [config]="config"
+          (loadError)="onLoadError($event)"
+          style="height: 100%; display: block;">
+        </tree-explorer>
+      </div>
+
+      <aside style="border: 1px solid #d7dce0; border-radius: 10px; background: #fff; padding: 12px; box-sizing: border-box; font-family: Roboto, sans-serif; font-size: 13px;">
+        <button
+          type="button"
+          data-testid="navigate-pinned"
+          (click)="navigatePinned()"
+          style="padding: 6px 10px; border: 1px solid #c7ced5; border-radius: 6px; background: #fff; cursor: pointer; margin-bottom: 10px;">
+          Navigate pinned target
+        </button>
+        <p style="margin: 0 0 8px;"><strong>Pinned navigation debug</strong></p>
+        <p style="margin: 0 0 6px;">Tree depth: 4 levels</p>
+        <p style="margin: 0 0 6px;">Leaf items: {{ totalItems }}</p>
+        <p data-testid="requests" style="margin: 0 0 6px;">Requests made: {{ requestsText() || 'none' }}</p>
+        <p data-testid="inflight" style="margin: 0 0 6px;">In-flight: {{ inFlightText() || 'none' }}</p>
+        <p data-testid="errors" style="margin: 0 0 6px;">Errored states: {{ errorsText() || 'none' }}</p>
+        <p data-testid="selected" style="margin: 0 0 6px;">Selected rows: {{ selectedText() }}</p>
+        <p data-testid="navigation" style="margin: 0;">Navigation outcome: {{ navigationOutcome() }}</p>
+      </aside>
+    </div>
+  `,
+})
+class PinnedCookbookLargeStoryComponent {
+  public readonly tree = viewChild<TreeExplorerComponent<PinnedDemoNode, PinnedDemoNode>>('tree');
+  public readonly mode = input<'success' | 'failure'>('success');
+  public readonly totalItems = TOTAL_ITEMS;
+  public readonly data: PinnedDemoNode[] = [
+    { id: ROOT_ID, name: 'Workspace', icon: 'home', hasChildren: true },
+  ];
+
+  public readonly requests = signal<string[]>([]);
+  public readonly inFlight = signal<string[]>([]);
+  public readonly errors = signal<string[]>([]);
+  public readonly navigationOutcome = signal('idle');
+
+  public readonly requestsText = computed(() => this.requests().join(', '));
+  public readonly inFlightText = computed(() => this.inFlight().join(', '));
+  public readonly errorsText = computed(() => this.errors().join(', '));
+  public readonly selectedText = computed(() => {
+    const tree = this.tree();
+    if (!tree) {
+      return 'none';
+    }
+    const selected = tree.visibleRows()
+      .filter((row) => row.selected)
+      .map((row) => row.id);
+    return selected.length > 0 ? selected.join(', ') : 'none';
+  });
+
+  public readonly config: Partial<TreeConfig<PinnedDemoNode>> = {
+    selection: { mode: SELECTION_MODES.SINGLE },
+    display: { indentPx: 22, density: TREE_DENSITY.NORMAL, showIcons: true },
+    virtualization: { mode: VIRTUALIZATION_MODES.AUTO, itemSize: 34 },
     pinned: {
       enabled: true,
-      label: 'Pinned',
-      dnd: { enabled: true },
-      store: pinnedStore,
-      onNavigate: (nodeId: string) => recordCall(`NAVIGATE nodeId=${nodeId}`),
-      contextActions: [
+      entries: [
         {
-          id: 'inspect-pinned',
-          label: (item: PinnedNode) => `Inspect ${item.name}`,
-          icon: () => 'info',
-        },
+          entryId: 'pin-deep-target',
+          nodeId: TARGET_ID,
+          label: 'Deep target',
+          icon: 'description',
+          order: 0,
+        } satisfies TreePinnedEntry,
       ],
+      onNavigate: (nodeId) => this.navigationOutcome.set(`success:${nodeId}`),
     },
-  } satisfies Partial<TreeConfig<PinnedNode>>;
-
-  syncDebug();
-
-  return {
-    props,
-    template: `
-      <div style="height: 84vh; padding: 12px; box-sizing: border-box; background: #f5f7fb; font-family: Roboto, sans-serif;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-          <label for="pinned-filter" style="font-size: 13px; color: #1f2937;">Search</label>
-          <input
-            id="pinned-filter"
-            data-testid="filter-input"
-            type="text"
-            [value]="filterQuery || ''"
-            (input)="filterQuery = $any($event.target).value"
-            placeholder="Filter tree rows..."
-            style="flex: 1; min-width: 220px; padding: 8px 10px; border: 1px solid #c8d0dc; border-radius: 6px; background: #fff;" />
-          <button
-            type="button"
-            data-testid="clear-filter"
-            (click)="filterQuery = ''"
-            style="padding: 8px 10px; border: 1px solid #c8d0dc; border-radius: 6px; background: #fff; cursor: pointer;">
-            Clear
-          </button>
-        </div>
-
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; height: calc(100% - 58px);">
-          <div style="border: 1px solid #d8dde6; border-radius: 10px; overflow: hidden; background: #fff;">
-            <tree-explorer
-              #tree
-              [data]="data"
-              [adapter]="adapter"
-              [config]="storyConfig"
-              [filterQuery]="filterQuery"
-              (selectionChange)="onSelectionChange($event)"
-              style="height: 100%; display: block;">
-            </tree-explorer>
-          </div>
-
-          <aside style="border: 1px solid #d8dde6; border-radius: 10px; background: #fff; padding: 10px; overflow: auto;">
-            <h4 style="margin: 0 0 8px; font-size: 14px; color: #0f172a;">Debug Panel</h4>
-            <div data-testid="selected-ids" style="font-size: 12px; color: #334155; margin-bottom: 10px;">
-              Selected: {{ selectedNodeIds.length > 0 ? selectedNodeIds.join(', ') : '(none)' }}
-            </div>
-
-            <div style="font-size: 12px; color: #0f172a; font-weight: 600; margin-bottom: 4px;">Persisted pinned</div>
-            <ul data-testid="persisted-pinned" style="margin: 0 0 12px; padding-left: 16px; font-size: 12px; color: #334155;">
-              @for (entry of persistedPinnedSnapshot; track entry) {
-                <li>{{ entry }}</li>
-              }
-            </ul>
-
-            <div style="font-size: 12px; color: #0f172a; font-weight: 600; margin-bottom: 4px;">Store calls</div>
-            <ul data-testid="store-calls" style="margin: 0; padding-left: 16px; font-size: 12px; color: #334155;">
-              @for (call of storeCalls; track call) {
-                <li>{{ call }}</li>
-              }
-            </ul>
-
-            <p style="margin: 12px 0 0; font-size: 12px; color: #64748b; line-height: 1.4;">
-              Right-click rows (or use the row menu) to Star/Unstar. Drag pinned rows to reorder.
-            </p>
-          </aside>
-        </div>
-      </div>
-    `,
   };
-};
 
-const meta: Meta<TreeExplorerComponent<PinnedNode, PinnedNode>> = {
-  title: 'Tree/Cookbook',
+  public readonly adapter: TreeAdapter<PinnedDemoNode, PinnedDemoNode> = {
+    getId: (source) => source.id,
+    getLabel: (data) => data.name,
+    getIcon: (data) => data.icon,
+    hasChildren: (data) => data.hasChildren,
+    resolvePathToNode: (targetId) => {
+      if (targetId !== TARGET_ID) {
+        return null;
+      }
+
+      return {
+        targetId,
+        steps: [
+          { nodeId: ROOT_ID, parentId: null },
+          { nodeId: level1Id(TARGET_PATH.l1), parentId: ROOT_ID },
+          { nodeId: level2Id(TARGET_PATH.l1, TARGET_PATH.l2), parentId: level1Id(TARGET_PATH.l1) },
+          {
+            nodeId: level3Id(TARGET_PATH.l1, TARGET_PATH.l2, TARGET_PATH.l3),
+            parentId: level2Id(TARGET_PATH.l1, TARGET_PATH.l2),
+          },
+          {
+            nodeId: level4Id(TARGET_PATH.l1, TARGET_PATH.l2, TARGET_PATH.l3, TARGET_PATH.l4),
+            parentId: level3Id(TARGET_PATH.l1, TARGET_PATH.l2, TARGET_PATH.l3),
+          },
+        ],
+      };
+    },
+    loadChildren: async (node: TreeNode<PinnedDemoNode>) => {
+      const requestKey = node.id;
+      this.requests.update((values) => [...values, requestKey]);
+      this.inFlight.update((values) => [...values, requestKey]);
+
+      await delay(90);
+      this.inFlight.update((values) => values.filter((value) => value !== requestKey));
+
+      if (this.mode() === 'failure' && node.id === FAILURE_NODE_ID) {
+        this.errors.update((values) => [...values, `load:${node.id}`]);
+        throw new Error('Nested branch load failed');
+      }
+
+      return buildChildren(node.id);
+    },
+  };
+
+  public onLoadError(error: TreeLoadError): void {
+    if (error.scope === 'navigation') {
+      this.navigationOutcome.set(`failure:${error.reason ?? 'unknown'}`);
+      return;
+    }
+
+    if (error.scope === 'children' && error.nodeId) {
+      this.errors.update((values) => [...values, `${error.scope}:${error.nodeId}`]);
+    }
+  }
+
+  public navigatePinned(): void {
+    const tree = this.tree();
+    const pinned = tree?.pinnedItems()[0];
+    if (!tree || !pinned) {
+      return;
+    }
+
+    this.navigationOutcome.set('in-progress');
+    tree.onPinnedClick(new MouseEvent('click'), pinned);
+  }
+}
+
+const meta: Meta = {
+  title: 'Tree/Pinned items',
   component: TreeExplorerComponent,
   parameters: {
     layout: 'fullscreen',
@@ -229,38 +260,39 @@ const meta: Meta<TreeExplorerComponent<PinnedNode, PinnedNode>> = {
 
 export default meta;
 
-type Story = StoryObj<TreeExplorerComponent<PinnedNode, PinnedNode>>;
+type Story = StoryObj;
 
-export const PinnedItemsStarNavigate: Story = {
-  name: 'Pinned items (star + navigate)',
-  args: {
-    data,
-    adapter,
-    config: {
-      selection: { mode: SELECTION_MODES.SINGLE },
-      display: { indentPx: 24, density: TREE_DENSITY.NORMAL, showIcons: true },
-      virtualization: { mode: VIRTUALIZATION_MODES.AUTO, itemSize: 36 },
-      filtering: {
-        mode: 'client',
-        showParentsOfMatches: true,
-        autoExpandMatches: true,
-      },
-    } satisfies Partial<TreeConfig<PinnedNode>>,
-    filterQuery: '',
-  },
-  render: renderCookbook,
-  parameters: {
-    docs: {
-      description: {
-        story:
-          'Cookbook for pinned items with mocked GET/POST/DELETE/reorder calls, root-level pinned shortcuts, and navigate-to-original behavior.',
-      },
+export const NestedAutoNavigation: Story = {
+  name: 'Nested auto navigation (4 levels, 125 items)',
+  render: () => ({
+    template: '<pinned-cookbook-large-story mode="success" />',
+    moduleMetadata: {
+      imports: [PinnedCookbookLargeStoryComponent],
     },
-  },
+  }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByTestId('navigate-pinned'));
+    await waitFor(async () => {
+      await expect(canvas.getByTestId('navigation')).toHaveTextContent('success');
+      await expect(canvas.getByTestId('selected')).toHaveTextContent(TARGET_ID);
+    });
+  },
+};
 
-    await canvas.findByText('Pinned');
-    await expect(canvas.getByTestId('store-calls')).toBeInTheDocument();
+export const NestedAutoNavigationLoadFailure: Story = {
+  name: 'Nested auto navigation: load failure',
+  render: () => ({
+    template: '<pinned-cookbook-large-story mode="failure" />',
+    moduleMetadata: {
+      imports: [PinnedCookbookLargeStoryComponent],
+    },
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByTestId('navigate-pinned'));
+    await waitFor(async () => {
+      await expect(canvas.getByTestId('navigation')).toHaveTextContent('failure');
+    });
   },
 };

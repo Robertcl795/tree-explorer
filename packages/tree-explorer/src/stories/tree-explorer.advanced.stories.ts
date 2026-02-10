@@ -63,8 +63,7 @@ type LazyNode = {
 };
 
 const lazyRoots: LazyNode[] = [
-  { id: 'db', name: 'Databases', hasChildren: true },
-  { id: 'fs', name: 'Files', hasChildren: true },
+  { id: 'catalog', name: 'Catalog', hasChildren: true },
 ];
 
 const lazyAdapter: TreeAdapter<LazyNode, LazyNode> = {
@@ -72,22 +71,16 @@ const lazyAdapter: TreeAdapter<LazyNode, LazyNode> = {
   getLabel: (data) => data.name,
   hasChildren: (data) => !!data.hasChildren,
   loadChildren: (node) => {
-    if (node.id === 'db') {
-      return Promise.resolve([
-        { id: 'db-a', name: 'Analytics', hasChildren: true },
-        { id: 'db-b', name: 'Billing', hasChildren: false },
-      ]);
+    if (node.id === 'catalog') {
+      return Promise.resolve(
+        Array.from({ length: 100 }, (_, index) => ({
+          id: `catalog-item-${index}`,
+          name: `Catalog Item ${index}`,
+          hasChildren: false,
+        })),
+      );
     }
-    if (node.id === 'db-a') {
-      return Promise.resolve([
-        { id: 'tbl-1', name: 'Sessions', hasChildren: false },
-        { id: 'tbl-2', name: 'PageViews', hasChildren: false },
-      ]);
-    }
-    return Promise.resolve([
-      { id: `${node.id}-child-1`, name: 'Child 1', hasChildren: false },
-      { id: `${node.id}-child-2`, name: 'Child 2', hasChildren: false },
-    ]);
+    return Promise.resolve([]);
   },
 };
 
@@ -117,21 +110,23 @@ const lazyConfig: Partial<TreeConfig<LazyNode>> = {
 };
 
 const meta: Meta<TreeExplorerComponent<any, any>> = {
-  title: 'Tree/Advanced',
+  title: 'Tree/Basic Usage',
   component: TreeExplorerComponent,
 };
 
 export default meta;
 
-export const Basic: StoryObj<TreeExplorerComponent<any, any>> = createTreeStory({
+export const Normal: StoryObj<TreeExplorerComponent<any, any>> = createTreeStory({
   data: basicData,
   adapter: new ObjectTreeAdapter<BasicNode>(),
   config: multiSelectConfig,
   actions: contextActions,
 });
+Normal.storyName = 'Normal';
 
-export const LazyLoad: StoryObj<TreeExplorerComponent<any, any>> = createTreeStory({
+export const LazyLoad100Items: StoryObj<TreeExplorerComponent<any, any>> = createTreeStory({
   data: lazyRoots,
   adapter: lazyAdapter,
   config: lazyConfig,
 });
+LazyLoad100Items.storyName = 'Lazy load (100 items)';

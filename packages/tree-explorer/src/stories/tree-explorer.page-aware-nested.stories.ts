@@ -488,7 +488,7 @@ type NestedPageAwareStoryArgs = {
 };
 
 const meta: Meta<NestedPageAwareVirtualScrollStoryComponent> = {
-  title: 'Tree/Page-aware nested virtual scroll',
+  title: 'Tree/Virtual scroll/Page aware',
   component: NestedPageAwareVirtualScrollStoryComponent,
   parameters: {
     layout: 'fullscreen',
@@ -523,3 +523,4 @@ export const UsersAndPosts: Story = {
     showIcons: true,
   },
 };
+UsersAndPosts.storyName = '(1000 users, 1000 posts)';

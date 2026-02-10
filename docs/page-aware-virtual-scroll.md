@@ -10,8 +10,8 @@
 3. Return `PageResult<TSource>` with `totalCount`.
 4. Use `TreeExplorerComponent` with virtual scroll enabled.
 5. Validate with Storybook:
-   - `Tree/Page-aware virtual scroll (X-Total-Count)`
-   - `Tree/Cookbook/Errors & edge cases`
+   - `Tree/Virtual scroll/Page aware`
+   - `Tree/Errors & edge cases`
 
 ```ts
 const adapter: TreeAdapter<Node> = {
@@ -93,6 +93,7 @@ Key engine/service calls:
 - Storybook references:
   - `packages/tree-explorer/src/stories/tree-explorer.page-aware.stories.ts`
   - `packages/tree-explorer/src/stories/tree-explorer.page-aware-nested.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.page-aware-three-level.stories.ts`
   - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
 
 ## 7) Non-goals / pitfalls

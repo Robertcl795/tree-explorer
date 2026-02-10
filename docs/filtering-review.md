@@ -11,8 +11,8 @@
    - `matches(data, query)` or `getSearchText(data)`.
 4. Render highlight ranges using `TreeHighlightMatchPipe` where needed.
 5. Validate with Storybook:
-   - `Tree/Filtering Cookbook`
-   - `Tree/Cookbook/Errors & edge cases`
+   - `Tree/Filtering (100+ elements)`
+   - `Tree/Errors & edge cases`
 
 ```html
 <tree-explorer
@@ -95,7 +95,7 @@ Filtering config:
   - set `selectionPolicy='clearHidden'`.
 - Storybook references:
   - `packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts`
-  - `packages/tree-explorer/src/stories/tree-explorer.filtering.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
 
 ## 7) Non-goals / pitfalls
 

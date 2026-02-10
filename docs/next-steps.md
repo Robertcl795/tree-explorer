@@ -60,8 +60,8 @@ Recommended for datasets too large for in-memory traversal.
 Cookbook stories:
 
 - [Filtering cookbook stories](../packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts) (includes live search bar + play-tests)
-- [Baseline filtering stories](../packages/tree-explorer/src/stories/tree-explorer.filtering.stories.ts)
-- [Pinned cookbook story](../packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts)
+- [Basic usage stories](../packages/tree-explorer/src/stories/tree-explorer.advanced.stories.ts)
+- [Errors and edge-case stories](../packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts)
 
 ## Pinned Items Roadmap
 
