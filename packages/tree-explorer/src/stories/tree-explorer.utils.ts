@@ -3,7 +3,12 @@
  */
 
 import { StoryObj } from '@storybook/angular';
-import { TreeContextAction, TreeConfig, TreeAdapter } from '@tree-core';
+import {
+  TreeContextAction,
+  TreeConfig,
+  TreeAdapter,
+  TreeFilterInput,
+} from '@tree-core';
 import { TreeExplorerComponent } from '../lib/components';
 
 export { basicConfig, fileSystemConfig, organizationConfig, menuConfig } from './tree-explorer.config';
@@ -14,6 +19,7 @@ export interface StoryConfig<TSource, T = TSource> {
   data: TSource[];
   adapter: TreeAdapter<TSource, T>;
   config?: Partial<TreeConfig<T>>;
+  filterQuery?: TreeFilterInput;
   loading?: boolean;
   actions?: TreeContextAction<T>[];
 }
@@ -25,6 +31,7 @@ export const createTreeStory = <TSource, T = TSource>(
     data: storyConfig.data,
     adapter: storyConfig.adapter,
     config: { ...(storyConfig.config ?? {}), actions: storyConfig.actions ?? [] },
+    filterQuery: storyConfig.filterQuery ?? null,
     loading: storyConfig.loading ?? false,
   },
   render: (args: any) => treeRender(args),
@@ -40,6 +47,7 @@ export function treeRender(args: any, height: string = '80vh') {
             [data]="data"
             [config]="config"
             [adapter]="adapter"
+            [filterQuery]="filterQuery"
             [loading]="loading"
             (itemClick)="itemClick && itemClick($event)"
             (itemDoubleClick)="itemDoubleClick && itemDoubleClick($event)"
