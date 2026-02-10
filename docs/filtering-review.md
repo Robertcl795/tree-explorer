@@ -78,7 +78,7 @@ Filtering config:
   - no result until branch loads (expected).
 - `server` mode + client query text:
   - rows are not client-filtered; backend response shape wins.
-- Legacy visibility gate + query:
+- Adapter visibility gate + query:
   - `isVisible=false` rows remain hidden regardless of query match.
 - Rapid query updates:
   - wrapper-level debounce is still recommended for high-frequency typing.

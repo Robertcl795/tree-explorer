@@ -8,9 +8,12 @@
 2. Feed data + adapter into `TreeExplorerComponent` (Angular wrapper).
 3. Let wrapper/service delegate state transitions to `TreeEngine` in `@tree-core`.
 4. Validate behavior with Storybook:
+   - `Tree/Basic Usage`
+   - `Tree/Virtual scroll`
    - `Tree/Errors & edge cases`
    - `Tree/Virtual scroll/Page aware`
-   - `Tree/Basic Usage`
+   - `Tree/Filtering (100+ elements)`
+   - `Tree/Pinned items`
 
 Minimal shape:
 
@@ -204,9 +207,12 @@ sequenceDiagram
 - If you need pinned persistence:
   - use `TreePinnedStore` hooks (`loadPinned`, `addPinned`, `removePinned`, `reorderPinned`).
 - Storybook references:
+  - `packages/tree-explorer/src/stories/tree-explorer.advanced.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.virtual-scroll.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts`
   - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
   - `packages/tree-explorer/src/stories/tree-explorer.page-aware.stories.ts`
-  - `packages/tree-explorer/src/stories/tree-explorer.advanced.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts`
 
 ## 7) Non-goals / pitfalls
 

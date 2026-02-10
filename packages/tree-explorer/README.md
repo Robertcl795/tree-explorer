@@ -120,7 +120,6 @@ Theming tokens:
 - `--tree-highlight-color` (default `currentColor`)
 - `--tree-highlight-radius` (default `2px`)
 - `--tree-highlight-padding-inline` (default `1px`)
-- legacy aliases `--td-tree-highlight-*` remain supported
 
 ```css
 tree-explorer {

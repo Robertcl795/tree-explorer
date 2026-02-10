@@ -1,168 +1,95 @@
 # Next Steps
 
-This roadmap is architecture-first and optimized for large datasets, virtualization correctness, and adapter-owned domain logic.
+This roadmap is updated after the TreeEngine modularization/performance/docs cycle.
+
+## Completed in This Cycle
+
+1. TreeEngine decomposed into focused modules with a facade orchestrator.
+2. Projection + flatten caches added to cut repeated recomputation on read-heavy paths.
+3. Paging patch path optimized to update only affected indices when branch shape is unchanged.
+4. Adapter leaf override finalized with precedence:
+   - `adapter.isLeaf(data, ctx?)`
+   - `node.isLeaf`
+   - default heuristic
+5. Storybook reorganized by feature:
+   - `Tree/Basic Usage`
+   - `Tree/Virtual scroll`
+   - `Tree/Virtual scroll/Page aware`
+   - `Tree/Filtering (100+ elements)`
+   - `Tree/Pinned items`
+   - `Tree/Errors & edge cases`
+6. Feature docs and architecture diagrams aligned to runtime behavior.
 
 ## Shared Vocabulary
 
 - `TreeEngine`: state and policy orchestration layer.
 - `TreeNode`: normalized engine node state.
 - `TreeAdapter`: domain-aware mapping and API boundary.
-- `Filtering`: query-to-visibility pipeline.
-- `Page-Aware Virtual Scrolling`: placeholder-backed paging for stable virtualization.
+- `Projection`: row view model derivation pipeline in `visibility.ts`.
+- `Page-Aware Virtual Scrolling`: placeholder-backed paging for stable viewport geometry.
 
-## Near-Term Delivery Checklist
+## Immediate Priorities (P0)
 
-Completed recently:
+1. Add integration tests for combined scenarios:
+   - filtering + page-aware pagination
+   - pinned navigation + page-aware loading
+   - filter policies + selection behavior (`clearHidden` vs `keep`)
+2. Add perf guardrails for large loaded trees:
+   - projection cache hit-rate tracking
+   - filter recompute timing thresholds
+3. Add Storybook interaction assertions for:
+   - `Tree/Pinned items` success/failure navigation
+   - `Tree/Virtual scroll/Page aware` page-level retry behavior
 
-1. Pinned section (star/unstar, reorder, navigate-to-original) with optional store hooks.
-2. Query filtering lifecycle and cookbook coverage.
-3. Theme token contract (`--tree-*`) across Angular and Lit wrappers.
+## Near-Term Improvements (P1)
 
-Next delivery targets:
+1. Tighten compatibility surface and migration posture:
+   - mark `TreeEngine.getVisibleRows` alias as compatibility-only in API docs
+   - mark `pinned.ids` as compatibility-only and keep `entries` as the primary path
+2. Add dedicated accessibility checks for:
+   - keyboard navigation in pinned section
+   - focus ring visibility across theme variants
+   - error announcement behavior in edge-case stories
+3. Tokenize remaining Storybook demo chrome where possible so examples use the same theming contract as runtime components.
 
-1. Add combined filtering + page-aware integration tests.
-2. Add query-performance instrumentation and thresholds.
-3. Add integration tests for pinned store failures (load/add/remove/reorder rollback behavior).
-4. Add themed Storybook variants (light/dark/high-contrast) for cookbook stories.
+## Strategic Work (P2)
 
-## Filtering Roadmap
+1. Evaluate index-assisted filtering for very large loaded datasets where O(n) recompute becomes visible.
+2. Evaluate Angular 20 adoption branch once baseline constraints are cleared:
+   - keep public APIs stable
+   - run typecheck + Storybook build + docs check + browser tests
+3. Add optional observability hooks for product teams:
+   - page request counts
+   - navigation failure reasons
+   - filter latency metrics
 
-### Simple client-side search
+## Storybook Validation Targets
 
-Recommended when all relevant nodes are already loaded.
+- `Tree/Basic Usage`
+  - Normal
+  - Lazy load (100 items)
+- `Tree/Virtual scroll`
+  - Normal (1000 items, 4 levels nest)
+- `Tree/Virtual scroll/Page aware`
+  - Root level (10000 items)
+  - (1000 users, 1000 posts)
+  - 3 levels (100 countries, 1000 users, 1000 posts)
+- `Tree/Filtering (100+ elements)`
+  - Client mode
+  - Hybrid
+  - Server: Direct matches
+  - Server: Clear hidden selection policy
+- `Tree/Pinned items`
+  - Nested auto navigation (4 levels, 125 items)
+  - Nested auto navigation: load failure
+- `Tree/Errors & edge cases`
 
-- Keep matching in adapter (`matches` or `getSearchText`).
-- Keep filtering in `TreeEngine`; never in row components.
-- Use wrapper-level debounce if filter is user-typed and high frequency.
+## Release Gate (Recommended)
 
-### Structured filters
-
-Recommended when query semantics include fields/tokens/flags.
-
-- Extend `TreeFilterQuery` with product-specific fields.
-- Keep policy decisions explicit:
-  - `showParentsOfMatches`
-  - `autoExpandMatches`
-  - `selectionPolicy`
-- Expose highlight ranges for deterministic rendering.
-- Ensure any new filter UI states (chips, badges, counters) define `--tree-*` tokens before shipping.
-
-### Server-side filtering with pagination
-
-Recommended for datasets too large for in-memory traversal.
-
-- Push filter query to adapter/API.
-- Return deterministic ordering and stable IDs per parent.
-- Preserve placeholder semantics for viewport geometry.
-- Treat client-side filtering as optional refinement over loaded pages.
-- Keep query status/loading/error visuals themeable via token contract.
-
-Cookbook stories:
-
-- [Filtering cookbook stories](../packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts) (includes live search bar + play-tests)
-- [Basic usage stories](../packages/tree-explorer/src/stories/tree-explorer.advanced.stories.ts)
-- [Errors and edge-case stories](../packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts)
-
-## Pinned Items Roadmap
-
-Implemented now:
-
-- Root-level pinned section (`TreeConfig.pinned.enabled`).
-- Star/Unstar via centralized container context menu.
-- Navigate to original node (expand loaded path + scroll + select/focus when available).
-- Optional `TreePinnedStore` hooks for GET/POST/DELETE/reorder.
-
-Next increments:
-
-1. Add stale-node recovery policy hooks (auto-remove vs warn vs keep).
-2. Add bounded bulk operations (`pinAllVisible`, `clearPinned`) behind explicit config.
-3. Evaluate optional `expandable` pinned shortcuts with strict depth/perf limits.
-4. Add explicit pinned-state theme tokens for stale and loading entries.
-
-## Theming Roadmap
-
-Implemented now:
-
-1. Shared `--tree-*` contract for Angular and Lit wrappers.
-2. Highlight token migration with backward-compatible aliases (`--td-tree-highlight-*`).
-3. Hardcoded visual values in core components replaced by tokenized styling where sensible.
-
-Next increments:
-
-1. Tokenize remaining Storybook cookbook container chrome (demo wrappers).
-2. Add tokens for context-menu states and drag/drop affordances.
-3. Publish dark and high-contrast preset snippets.
-4. Add a visual-regression pass for theme variants.
-
-## Adapter Techniques
-
-- Stable ID strategy:
-  - `getId` must be globally stable and deterministic.
-- Domain projection:
-  - use `toData` / `transform` for normalized view model inputs.
-- Matching ownership:
-  - use `matches(data, query)` for domain semantics.
-- Pagination ownership:
-  - keep backend contracts inside adapter (`getPagination`, `loadChildren`).
-
-## Responsibility Boundaries
-
-- Adapter:
-  - domain mapping, API protocol, match semantics.
-- Engine:
-  - filtering/selection/expansion/loading state machine.
-- UI wrapper:
-  - rendering, viewport wiring, user interaction events.
-  - consuming `--tree-*` theme tokens for visuals.
-
-## Angular Platform Strategy
-
-### Baseline policy
-
-- Maintain Angular `19.2.x` as the workspace baseline until a planned upgrade window.
-- Keep docs, examples, and CI assumptions aligned to Angular 19 behavior.
-
-### Angular 20 stable APIs to evaluate
-
-The following Angular 20 APIs are stable and useful for this codebase:
-
-1. `linkedSignal` (stable since v20.0)
-   - Potential use: derive filter state snapshots and policy-driven view state with controlled writable signal behavior.
-2. Signal primitives and signal-based component APIs (graduated to stable in Angular v20 roadmap)
-   - Potential use: simplify wrapper/service reactivity and reduce cross-layer glue code.
-3. `provideZonelessChangeDetection` (stable since v20.2)
-   - Potential use: reduce ZoneJS coupling and tighten signal-driven change detection paths.
-4. Incremental hydration (stable in v20 roadmap)
-   - Potential use for SSR deployments that need tree interactivity with lower hydration cost.
-
-References:
-
-- Angular roadmap (stability milestones): https://angular.dev/roadmap
-- `linkedSignal` API: https://angular.dev/api/core/linkedSignal
-- `provideZonelessChangeDetection` API: https://angular.dev/api/core/provideZonelessChangeDetection
-
-### Suggested adoption sequence
-
-1. Upgrade branch to Angular 20 while keeping public APIs unchanged.
-2. Validate Storybook + typecheck + docs check + browser tests.
-3. Pilot zoneless in Storybook/test environment before production enablement.
-4. Introduce `linkedSignal` only where it reduces complexity measurably.
-
-## Anti-Patterns to Avoid
-
-- Filtering in row templates/components.
-- Mixing incompatible filtering logic across host, wrapper, and adapter.
-- Using unstable IDs in any filtered/paged path.
-- Introducing Angular 20-only patterns on the mainline before baseline upgrade planning.
-- Shipping new UI without adding/using theme tokens.
-
-## Feature Checklist (Required)
-
-When adding a feature:
-
-1. Define the requirement and expected behavior boundaries.
-2. Decide ownership (adapter vs engine vs wrapper).
-3. Define/update `--tree-*` tokens for any new visual states.
-4. Add/update tests (unit or Storybook interaction) for behavior and regressions.
-5. Add Storybook coverage for at least one themed variant.
-6. Update docs (`architecture`, `next-steps`, and feature doc) before merge.
+```bash
+pnpm typecheck
+pnpm docs:check
+pnpm storybook:build
+pnpm --filter @tree-core test
+pnpm --filter @tree-explorer test
+```

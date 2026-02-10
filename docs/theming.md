@@ -38,7 +38,7 @@ Behavior rules:
 
 - Use `--tree-*` as public theme API.
 - Keep hard layout geometry decisions in config (`itemSize`, indentation) and engine behavior.
-- Keep legacy highlight aliases (`--td-tree-highlight-*`) only for backward compatibility.
+- Keep highlights and pinned states tokenized through the documented `--tree-*` contract.
 
 ## 4) API overview
 
@@ -74,6 +74,7 @@ Behavior rules:
   - reduce row/padding/font tokens together, not piecemeal.
 - Storybook references:
   - `packages/tree-explorer/src/stories/tree-explorer.advanced.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts`
   - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
 
 ## 7) Non-goals / pitfalls

@@ -7,7 +7,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Large-tree support with virtualization-first design.
 - Adapter-first domain integration.
 - Unified state orchestration in `@tree-core`.
-- Query-based filtering with backward compatibility for `isVisible`.
+- Query-based filtering with adapter-owned match semantics.
 - Page-aware lazy loading with placeholders and range-driven page fetch.
 - Optional pinned shortcuts with store-driven persistence hooks.
 
@@ -33,9 +33,9 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Virtualization-safe placeholders for paged children.
 - Angular wrapper (`@tree-explorer`) with CDK virtual scroll.
 - Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
-- Storybook coverage for advanced, filtering, and page-aware scenarios.
+- Storybook coverage grouped by feature (`Basic Usage`, `Virtual scroll`, `Filtering`, `Pinned items`, `Errors & edge cases`).
 - Storybook edge-case coverage for initial load failures, page-aware retries, and pinned async navigation failures.
-- Pinned cookbook story (star/unstar, navigate-to-original, reorder, mocked GET/POST/DELETE).
+- Pinned cookbook story for nested async auto-navigation success/failure.
 - Angular highlight pipe for matched labels (`TreeHighlightMatchPipe`), driven by current `filterQuery`.
 - First-class theme contract via CSS variables (`--tree-*`) for design-system alignment.
 

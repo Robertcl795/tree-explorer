@@ -1,274 +1,188 @@
-# TreeEngine Audit
+# TreeEngine Re-Audit (Post-Refactor)
 
 Date: 2026-02-10  
-Scope: `packages/tree-core/src/lib/engine/tree-engine.ts`
+Scope:
+- `packages/tree-core/src/lib/engine/*`
+- `packages/tree-core/src/lib/types/*`
+- `packages/tree-explorer/src/lib/services/tree.service.ts`
+- `packages/tree-explorer/src/stories/*.stories.ts`
 
-## Current Responsibilities
+## Executive Summary
 
-`TreeEngine<T>` currently owns all of these concerns in one class:
+The engine split is complete and in production shape:
 
-1. Core tree state:
-   - `nodes`, `expanded`, `selected`, `loading`, `errors`
-2. Pagination state:
-   - per-parent `pageSize`, loaded/in-flight/error page tracking, total counts
-3. Expansion behavior:
-   - expand/collapse toggles, ancestor-path expansion
-4. Selection behavior:
-   - none/single/multi/hierarchical modes, branch/range selection
-5. Flattening and visibility:
-   - flatten expanded tree
-   - filtering and visibility policy application
-6. Row projection:
-   - adapter-driven mapping from `TreeNode` to `TreeRowViewModel`
-   - placeholder row synthesis and page error labels
-7. Async loading orchestration state:
-   - initial child loading flags
-   - paged in-flight and page failure states
-8. Error state handling:
-   - node-level and page-level error registration/clear
-9. Virtualization strategy decision:
-   - auto flat/deep strategy based on node count and depth
+1. `TreeEngine` is now an orchestrator/facade, not a logic dump.
+2. Hot paths are modularized and mostly linear in the impacted working set.
+3. Projection and flattening caches remove repeated recomputation on read-heavy paths.
+4. `adapter.isLeaf(data, ctx?)` precedence is implemented and covered.
+5. Storybook includes the requested error and edge-case coverage plus deep pinned navigation.
+6. Docs are aligned with the current architecture and Storybook structure.
 
-This is functionally complete but too broad for maintainability and test isolation.
+## Criteria Status Matrix
 
-## Public API Surface
+| Requested criteria | Status | Evidence |
+|---|---|---|
+| TreeEngine decomposition into focused modules | Complete | `packages/tree-core/src/lib/engine/tree-engine.ts`, `packages/tree-core/src/lib/engine/flattening.ts`, `packages/tree-core/src/lib/engine/paging.ts`, `packages/tree-core/src/lib/engine/visibility.ts`, `packages/tree-core/src/lib/engine/selection.ts`, `packages/tree-core/src/lib/engine/expansion.ts`, `packages/tree-core/src/lib/engine/loading.ts`, `packages/tree-core/src/lib/engine/navigation.ts`, `packages/tree-core/src/lib/engine/node-index.ts`, `packages/tree-core/src/lib/engine/utils.ts`, `packages/tree-core/src/lib/engine/types.ts` |
+| Per-module tests for critical behavior | Complete | `packages/tree-core/src/lib/engine/*.spec.ts` |
+| Linear hot paths and reduced repeated computation | Complete (with one known gap) | Flatten cache + projection cache in `packages/tree-core/src/lib/engine/tree-engine.ts`; page range scheduler and page patching in `packages/tree-core/src/lib/engine/paging.ts` |
+| Type simplification and reduced one-off type noise | Complete | Shared internals constrained to `packages/tree-core/src/lib/engine/types.ts`; pure helpers in `packages/tree-core/src/lib/engine/utils.ts` |
+| Adapter `isLeaf` override precedence | Complete | `packages/tree-core/src/lib/engine/visibility.ts`, `packages/tree-core/src/lib/types/tree-adapter.ts`, `packages/tree-core/src/lib/engine/visibility.spec.ts` |
+| Storybook error/edge coverage | Complete | `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts` |
+| Pinned async deep navigation validation | Complete | `packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts` |
+| Docs and diagrams aligned to runtime behavior | Complete | `docs/architecture.md`, `docs/page-aware-virtual-scroll.md`, `docs/filtering-review.md`, `docs/pinned-items.md`, `docs/theming.md` |
 
-Public methods from `TreeEngine` today:
+## Current Responsibilities by Module
 
-- Configuration and read access:
-  - `configure`
-  - `getFilterQuery`
-  - `nodes`, `expandedIds`, `selectedIds`, `loadingIds`, `stats`
-  - `getNode`
-  - `getPagedNodeDebugState`
-  - `hasPagination`
-  - `getVirtualizationStrategy`
-- Initialization and structure updates:
-  - `init`
-  - `setChildrenLoaded`
-  - `clearChildren`
-  - `expandPath`
-- Expansion and selection:
-  - `toggleExpand`
+### Facade
+
+- `tree-engine.ts`
+  - Owns runtime state references and cache invalidation keys.
+  - Delegates behavior to focused modules.
+  - Maintains public API stability for wrappers/services.
+
+### Indexing and traversal
+
+- `node-index.ts`
+  - Ancestor/descendant lookup wrappers.
+- `flattening.ts`
+  - Flattened graph cache keyed by `(nodesRef, expandedRef)`.
+
+### Mutation modules
+
+- `expansion.ts`
+  - Expand/collapse transitions.
+  - Lazy-load trigger decision on first expansion.
+- `selection.ts`
+  - Single/multi/hierarchical selection + range helpers.
+- `paging.ts`
+  - Pagination state, in-flight tracking, error pages.
+  - Placeholder slot priming and page patching.
+- `loading.ts`
+  - Node loading/error transitions.
+
+### Projection, filtering, navigation
+
+- `visibility.ts`
+  - Query normalization.
+  - Filter visibility policy.
+  - Row projection and placeholder row rendering.
+  - `isLeaf` precedence resolution.
+- `navigation.ts`
+  - Path build/expand helpers and visible index lookup.
+
+### Internal-only shared contracts
+
+- `types.ts`
+  - Engine-internal state and projection cache contracts.
+- `utils.ts`
+  - Small pure helpers and factory/fingerprint functions.
+
+## Public API Surface (Current)
+
+Primary facade methods in `TreeEngine`:
+
+- Setup/state:
+  - `configure`, `init`, `getNode`, `getFilterQuery`, `stats`
+- Expansion/selection:
+  - `toggleExpand`, `expandPath`
   - `selectNone`, `selectOne`, `selectToggle`, `selectRange`, `selectBranch`
-- Paging lifecycle:
-  - `setPagination`
-  - `markPageInFlight`
-  - `ensureRangeLoaded`
-  - `applyPagedChildren`
-  - `clearPageInFlight`
-  - `setPageError`
-  - `clearPageError`
-- Loading/error lifecycle:
-  - `clearLoading`
-  - `setNodeError`
-  - `clearNodeError`
-- Filtering + rows:
+- Paging:
+  - `setPagination`, `hasPagination`, `getPagedNodeDebugState`
+  - `primePagedPlaceholders`, `markPageInFlight`, `ensureRangeLoaded`
+  - `applyPagedChildren`, `clearPageInFlight`, `setPageError`, `clearPageError`
+- Loading/errors:
+  - `clearLoading`, `setNodeError`, `clearNodeError`, `clearChildren`
+- Filtering/projection:
   - `setFilter`, `clearFilter`, `reapplyFilter`
-  - `getFilteredFlatList`
-  - `getVisibleRows` (compat alias)
-  - `getRowViewModelsById`
+  - `getFilteredFlatList`, `getRowViewModelsById`
+  - `getVisibleRows` (compat alias retained)
 
-## Internal Dependency Map
+## Hot Paths and Complexity
 
-`tree-engine.ts` directly depends on:
+### 1) Flatten + projection reads
 
-- `../utils/tree-utils`
-  - `flattenTree`, `getAncestorIds`, `getDescendantIds`
-  - `calculateHierarchicalSelection`, `toggleHierarchicalSelection`
-  - `getSelectionRange`, `getMaxDepth`
-- `../types/tree-config`
-- `../types/tree-adapter`
-- `../types/tree-filter`
-- `../types/tree-pagination`
-- `../types/tree-node`
+- `getFilteredFlatList` and `getRowViewModelsById` both consume a shared projection cache.
+- Cache key dimensions include:
+  - adapter ref
+  - node/expansion/selection/loading/error refs
+  - filter fingerprint + filter config fingerprint
+  - paging version
+- Result:
+  - repeated reads after no state change are O(1) cache hits.
+  - recompute remains O(n) for traversed nodes when state changes.
 
-Internal sections mixed in one file:
+### 2) Range-based page scheduling
 
-1. State and pagination storage
-2. Pagination mutation logic
-3. Loading/error mutation logic
-4. Expansion/selection logic
-5. Filter normalization and matching logic
-6. Visibility derivation
-7. Row projection (including placeholder rendering)
-
-## Hot Path Analysis
-
-### 1) Render range updates (`ensureRangeLoaded`)
-
-- Triggered from virtual-scroll range changes.
-- Current behavior:
-  - computes page span from child index range
-  - calls `markPageInFlight` for each page
+- `ensureRangeLoadedPages` in `paging.ts` computes affected page span and marks only missing pages.
 - Complexity:
-  - O(pages in range)
-- Good:
-  - linear in requested range pages
-  - deduped by loaded/in-flight checks
+  - O(p), `p = pages touched by [start,end]`.
+- No total-branch scan for range scheduling.
 
-### 2) Page patching (`applyPagedChildren`)
+### 3) Page patching and placeholder behavior
 
-- Current behavior:
-  - creates `nextChildrenIds = new Array(totalCount)`
-  - loops across full `totalCount` to pre-fill placeholders or preserve loaded rows
-  - patches loaded page range
-- Complexity:
-  - O(totalCount) per page update in steady state
-- Risk:
-  - unnecessary repeated full-array work for large paged branches
+- `applyPagedChildrenState` behavior:
+  - shape-change path (when `totalCount` changes): materialize slots O(totalCount)
+  - steady-state path: patch only affected indices O(k), `k = children in loaded pages`
+- This is the intended performance profile for large paged branches.
 
-### 3) Flatten + visible row derivation
+### 4) Selection and expansion
 
-- `getFilteredFlatList` and `getRowViewModelsById` both:
-  - flatten tree
-  - recompute selection hierarchy
-  - recompute filter visibility state
-  - project row view models
-- Complexity:
-  - O(n) each call, but duplicated per read path
-- Risk:
-  - repeated computation during frequent viewport updates
+- Map/set based state transitions.
+- Branch/range operations scale with impacted branch/range, not all nodes, except where hierarchical semantics require subtree traversal.
 
-### 4) Expansion/selection operations
+## Coupling and Boundary Review
 
-- Mostly set/map-based updates with helper traversals.
-- Complexity:
-  - expansion toggle O(1)
-  - path expansion O(ancestor depth)
-  - branch selection O(descendant count)
-  - hierarchical selection depends on full selected subtree normalization
+### Good boundaries
 
-## Complexity and Coupling Report
+- Adapter remains the domain boundary:
+  - IDs, labels, match semantics, leaf semantics, pagination contract, path resolution.
+- UI context menu ownership remains in Angular wrapper:
+  - no context-menu policy in `@tree-core`.
 
-### UI coupling
+### Intended coupling still present
 
-- Row labels for placeholders (`Loading...`, `Failed to load page`) are inside core engine.
-- `TreeRowViewModel` projection logic is embedded in core mutation file.
+- Placeholder display labels are still projected in core (`visibility.ts`) as view-model content.
+  - This is acceptable for now because placeholder semantics are engine-owned and wrapper-agnostic.
 
-### Adapter coupling
+## Type and Repetition Review
 
-- Adapter behavior (`getLabel`, `isDisabled`, `isLeaf`, `matches`, `getSearchText`, `highlightRanges`, `hasChildren`) is invoked directly in engine row/filter logic.
-- Leaf resolution precedence exists but is embedded in row generation path.
+### Improvements confirmed
 
-### Persistence/integration coupling
+- Single-use structural types were reduced and moved out of facade logic.
+- Shared engine types are scoped to `engine/types.ts` instead of scattered one-off interfaces.
+- Repeated projection logic is centralized in `visibility.ts`:
+  - placeholder row creation in one function
+  - projection map/list built once per cache miss
 
-- Core doesn’t call persistence directly (good).
-- But page error semantics are represented as parent-level node errors, which wrappers interpret for retry UX.
+### Remaining acceptable duplication
 
-Overall:
+- Similar row-shape construction still exists for placeholder vs non-placeholder rows by design.
+- This duplication is small, explicit, and keeps hot path branching predictable.
 
-- Domain boundary is correct (adapter-owned), but orchestration + projection + policy + pagination are over-coupled in one class.
+## Test Coverage Snapshot
 
-## Redundant / Single-Use Types
+Core module specs exist for:
 
-Types declared inside `tree-engine.ts`:
+- `flattening.spec.ts`
+- `expansion.spec.ts`
+- `selection.spec.ts`
+- `paging.spec.ts`
+- `visibility.spec.ts`
+- `tree-engine.spec.ts`
 
-- `TreeState<T>`: used throughout engine internals only.
-- `TreePagedNodeState`: used by pagination internals only.
-- `FilteredVisibilityState`: used by filter/visibility internals only.
-- `TreePagedNodeDebugState`, `TreeStats`: exported and useful externally.
+Wrapper/service specs verify pinned and navigation flows:
 
-Findings:
+- `packages/tree-explorer/src/lib/services/tree.service.spec.ts`
+- `packages/tree-explorer/src/lib/components/tree-explorer/tree-explorer.component.spec.ts`
 
-- Internal-only interfaces are valid but should move into focused engine-internal modules.
-- Several temporary object shapes are repeated inline (row projections, placeholder rows).
-- Current single-file type declarations force unrelated concerns to share one type namespace.
+## Remaining Risks and Gaps
 
-## Repetition Report
+1. Filter recomputation after state changes is still O(n) on loaded nodes.
+2. Very large hybrid filtering scenarios still rely on wrapper orchestration for deeper loads.
+3. Cross-feature integration tests (filtering + paging + pinned navigation together) can be expanded.
 
-### Repeated object construction
+## Recommended Next Steps
 
-- `TreeRowViewModel` objects are built in both:
-  - `getFilteredFlatList`
-  - `getRowViewModelsById`
-- Placeholder rows are built repeatedly with near-identical shape.
-
-### Repeated computations
-
-- `flattenedNodes()` repeated in multiple methods.
-- `calculateHierarchicalSelection(...)` recalculated per read path.
-- `computeFilteredVisibility(...)` recalculated per read path.
-- Label/icon/isLeaf/highlight derivations duplicated per method.
-
-### Duplicated code paths
-
-- Filtering row projection logic duplicated between full-list and by-id retrieval.
-- Page-loading state mutation patterns are repeated with slight variations.
-
-## Proposed Split Map (Method-to-Module)
-
-### `tree-engine.ts` (facade/orchestrator)
-
-- Public API methods remain stable.
-- Delegates to module functions/classes.
-- Owns cache invalidation/version counters and module wiring.
-
-### `node-index.ts`
-
-- `getAncestorIds` / `getDescendantIds` usage wrappers
-- id-parent-child lookup helpers
-
-### `flattening.ts`
-
-- Flatten expanded tree logic and flattened cache
-
-### `expansion.ts`
-
-- `toggleExpand`
-- `expandPath`
-
-### `selection.ts`
-
-- `selectNone`, `selectOne`, `selectToggle`, `selectRange`, `selectBranch`
-
-### `paging.ts`
-
-- `setPagination`, `hasPagination`, `getPagedNodeDebugState`
-- `markPageInFlight`, `ensureRangeLoaded`
-- `applyPagedChildren`, `clearPageInFlight`, `setPageError`, `clearPageError`
-
-### `loading.ts`
-
-- `clearLoading`, `setNodeError`, `clearNodeError`
-
-### `visibility.ts`
-
-- filter normalization/fingerprint/query term handling
-- visibility derivation and filter policies
-- row projection and placeholder row mapping
-- `resolveIsLeaf` precedence handling
-
-### `navigation.ts`
-
-- `expandPath` orchestration helpers
-- node visibility lookup helpers for wrappers
-- async pinned navigation helpers (adapter path integration)
-
-### `types.ts` (internal shared types only)
-
-- internal state and cache types used across modules
-- no public exports except through facade types that are already public today
-
-### `utils.ts`
-
-- small shared pure helpers
-- avoids copy-paste state clone snippets
-
-## Refactor Risk Notes
-
-1. Placeholder stability is a hard invariant for virtualization:
-   - keep deterministic IDs and positional replacement behavior.
-2. Filter + selection interaction is regression-prone:
-   - preserve server/client/hybrid mode behavior and `clearHidden` policy.
-3. `isLeaf` precedence changes must remain backward compatible.
-4. Keep context menu and UI actions out of core (already true; preserve).
-
-## Refactor Acceptance Checklist
-
-- [x] Audit completed before code refactor.
-- [ ] Engine decomposed into focused modules with thin facade.
-- [ ] Hot-path recomputation reduced via caches/version keys.
-- [ ] Page patching avoids repeated O(totalCount) work on steady-state page loads.
-- [ ] Tests split by module responsibility.
-- [ ] Public API compatibility preserved and migration notes added.
+1. Add query index/projection acceleration for very large loaded datasets.
+2. Add combined integration tests for filtering + page-aware + pinned navigation.
+3. Add lightweight perf instrumentation to measure projection cache hit rates and filter recompute cost.

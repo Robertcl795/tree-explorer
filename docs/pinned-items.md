@@ -5,11 +5,11 @@
 ## 1) Getting started
 
 1. Enable pinned config in `TreeConfig`.
-2. Provide static `entries` or `ids`, or wire `TreePinnedStore`.
+2. Provide static `entries` or wire `TreePinnedStore`.
 3. Keep context-menu actions centralized in `TreeExplorerComponent`.
 4. If targets may be unloaded, implement `adapter.resolvePathToNode`.
 5. Validate with Storybook:
-   - `Tree/Basic Usage`
+   - `Tree/Pinned items`
    - `Tree/Errors & edge cases`
 
 ```ts
@@ -84,9 +84,8 @@ sequenceDiagram
 
 | Field | Type | Default | Meaning | Notes |
 |---|---|---|---|---|
-| `enabled` | `boolean` | inferred by legacy ids/entries | Enables pinned section | Explicit is preferred |
+| `enabled` | `boolean` | `false` | Enables pinned section | Explicit is preferred |
 | `label` | `string` | `'Pinned'` | Section heading | |
-| `ids` | `TreeId[]` | `[]` | Legacy shorthand | Kept for compatibility |
 | `entries` | `TreePinnedEntry[]` | `[]` | Explicit pinned records | Preferred |
 | `store` | `TreePinnedStore<T>` | `undefined` | Persistence hooks | Optional |
 | `maxItems` | `number` | `undefined` | Pinned cap | Guardrail |
@@ -106,6 +105,7 @@ sequenceDiagram
 
 - Existing pinned config continues to work unchanged.
 - Existing adapters continue to work unchanged.
+- `pinned.ids` remains compatibility-only; use `pinned.entries` for new code.
 - To enable unloaded-target pinned navigation, add `resolvePathToNode`.
 
 ## 5) Edge cases & failure modes
@@ -130,7 +130,7 @@ sequenceDiagram
 - Static shortcuts only:
   - use `entries` without store.
 - Storybook references:
-  - `packages/tree-explorer/src/stories/tree-explorer.advanced.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts`
   - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
 
 ## 7) Non-goals / pitfalls
