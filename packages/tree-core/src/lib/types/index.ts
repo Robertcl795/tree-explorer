@@ -5,3 +5,4 @@ export * from './tree-errors';
 export * from './tree-filter';
 export * from './tree-node';
 export * from './tree-pagination';
+export * from './tree-pinned';

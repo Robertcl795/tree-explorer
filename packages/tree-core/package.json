@@ -9,7 +9,7 @@
   "types": "./index.d.ts",
   "scripts": {
     "build": "ng build tree-core",
-    "test": "ng test tree-core --watch=false --browsers=ChromeHeadless --no-progress",
+    "test": "CHROME_BIN=$(node -e \"process.stdout.write(require('puppeteer').executablePath())\") ng test tree-core --watch=false --browsers=ChromeHeadless --no-progress",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit",
     "lint": "echo 'No lint configured for @tree-core'",
     "clean": "rm -rf ../../dist/tree-core"

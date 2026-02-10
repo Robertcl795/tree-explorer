@@ -3,6 +3,7 @@
   [class.disabled]="row().disabled"
   [class.error]="row().error"
   [style.padding-left.px]="leftPadding()"
+  [attr.data-tree-row-id]="row().id"
   [attr.tabindex]="row().disabled ? null : 0"
   [attr.draggable]="dragDropEnabled() && !row().disabled ? true : null"
   (click)="rowClick.emit($event)"

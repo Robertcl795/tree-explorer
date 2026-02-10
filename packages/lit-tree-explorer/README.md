@@ -8,6 +8,7 @@ A minimal Lit wrapper around tree-core. This is a scaffold-only proof of concept
 - Core engine: [@tree-core README](../tree-core/README.md)
 - Angular wrapper: [@tree-explorer README](../tree-explorer/README.md)
 - Architecture: [docs/architecture.md](../../docs/architecture.md)
+- Pinned items: [docs/pinned-items.md](../../docs/pinned-items.md)
 - Next steps: [docs/next-steps.md](../../docs/next-steps.md)
 
 Run from workspace root:

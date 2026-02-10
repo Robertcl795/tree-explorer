@@ -1,4 +1,8 @@
 import { CommonModule } from '@angular/common';
+import {
+  CdkDragDrop,
+  DragDropModule,
+} from '@angular/cdk/drag-drop';
 import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 import {
   ChangeDetectionStrategy,
@@ -28,12 +32,15 @@ import {
   TreeFilterInput,
   TreeLoadError,
   TreeNode,
+  TreePinnedEntry,
+  TreePinnedNodeContext,
   TreeRowViewModel,
 } from '@tree-core';
 import {
   TreeContextMenuEvent,
   TreeDragEvent,
   TreeNodeEvent,
+  TreePinnedItemView,
   TreeSelectionEvent,
 } from '../../types';
 import { TreeStateService } from '../../services/tree.service';
@@ -44,6 +51,7 @@ import { TreeItemComponent } from '../tree-item/tree-item.component';
   standalone: true,
   imports: [
     CommonModule,
+    DragDropModule,
     ScrollingModule,
     MatProgressBarModule,
     MatButtonModule,
@@ -84,6 +92,8 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
   public readonly contextRow = signal<TreeRowViewModel<T> | null>(null);
   public readonly contextNode = signal<TreeNode<T> | null>(null);
+  public readonly contextPinnedItem = signal<TreePinnedItemView<T> | null>(null);
+  public readonly contextTarget = signal<'node' | 'pinned' | null>(null);
   public readonly contextEvent = signal<MouseEvent | null>(null);
   public readonly menuX = signal(0);
   public readonly menuY = signal(0);
@@ -111,10 +121,22 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   );
 
   public readonly visibleRows = computed(() => this.treeService.visibleRows());
-
-  public readonly pinnedRows = computed(() =>
-    this.treeService.getPinnedRows(this.treeConfig().pinned?.ids ?? []),
+  public readonly pinnedItems = computed(() => this.treeService.pinnedItems());
+  public readonly pinnedConfig = computed(() => this.treeService.pinnedConfig());
+  public readonly pinnedLoading = computed(() => this.treeService.pinnedLoading());
+  public readonly pinnedError = computed(() => this.treeService.pinnedError());
+  public readonly pinnedCollapsed = signal(false);
+  public readonly pinnedSectionVisible = computed(
+    () =>
+      this.pinnedConfig().enabled &&
+      (this.pinnedItems().length > 0 || this.pinnedLoading() || !!this.pinnedError()),
   );
+  public readonly pinnedDndEnabled = computed(
+    () => this.pinnedConfig().enabled && this.pinnedConfig().dndEnabled,
+  );
+
+  private static readonly PIN_ACTION_ID = '__tree_pin__';
+  private static readonly UNPIN_ACTION_ID = '__tree_unpin__';
 
   constructor() {
     effect(() => {
@@ -196,7 +218,31 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     if (row.placeholder || row.disabled) {
       return false;
     }
-    return this.getVisibleActions(row).length > 0;
+    const node = this.treeService.getNode(row.id);
+    if (!node) {
+      return false;
+    }
+    return this.getNodeContextActions(row, node).length > 0;
+  }
+
+  public hasPinnedContextActions(item: TreePinnedItemView<T>): boolean {
+    return this.getPinnedContextActions(item).length > 0;
+  }
+
+  public togglePinnedCollapsed(event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.pinnedCollapsed.update((collapsed) => !collapsed);
+  }
+
+  public trackByPinnedEntry = (_: number, item: TreePinnedItemView<T>) =>
+    item.entry.entryId;
+
+  public onPinnedDrop(event: CdkDragDrop<TreePinnedItemView<T>[]>): void {
+    if (!this.pinnedDndEnabled()) {
+      return;
+    }
+    void this.treeService.reorderPinned(event.previousIndex, event.currentIndex);
   }
 
   public onRowClick(event: MouseEvent, row: TreeRowViewModel<T>): void {
@@ -220,13 +266,15 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     this.itemClick.emit({ node, row, event });
   }
 
-  public onPinnedClick(event: MouseEvent, row: TreeRowViewModel<T>): void {
-    if (row.placeholder) {
+  public onPinnedClick(event: MouseEvent, item: TreePinnedItemView<T>): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (item.missing) {
       return;
     }
 
-    this.scrollToRow(row.id);
-    this.onRowClick(event, row);
+    this.navigateToNode(item.entry.nodeId);
   }
 
   public onRowDoubleClick(event: MouseEvent, row: TreeRowViewModel<T>): void {
@@ -333,6 +381,30 @@ export class TreeExplorerComponent<TSource, T = TSource> {
 
     this.contextRow.set(row);
     this.contextNode.set(node);
+    this.contextPinnedItem.set(null);
+    this.contextTarget.set('node');
+    this.contextEvent.set(event);
+    this.menuX.set(event.clientX);
+    this.menuY.set(event.clientY);
+
+    queueMicrotask(() => this.contextMenuTrigger()?.openMenu());
+  }
+
+  public openPinnedContextMenu(
+    event: MouseEvent,
+    item: TreePinnedItemView<T>,
+  ): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!this.hasPinnedContextActions(item)) {
+      return;
+    }
+
+    this.contextPinnedItem.set(item);
+    this.contextTarget.set('pinned');
+    this.contextNode.set(item.node);
+    this.contextRow.set(item.row);
     this.contextEvent.set(event);
     this.menuX.set(event.clientX);
     this.menuY.set(event.clientY);
@@ -341,16 +413,41 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   }
 
   public onContextAction(action: TreeContextAction<T>): void {
-    const node = this.contextNode();
-    const row = this.contextRow();
     const event = this.contextEvent();
-    if (!node || !row || !event) {
+    if (!event) {
       return;
     }
 
     try {
-      action.handler?.(node);
-      this.contextMenuAction.emit({ node, row, action, event });
+      if (action.id === TreeExplorerComponent.PIN_ACTION_ID) {
+        const node = this.contextNode();
+        if (node) {
+          void this.treeService.pinNode(node.id);
+        }
+      } else if (action.id === TreeExplorerComponent.UNPIN_ACTION_ID) {
+        const pinnedItem = this.contextPinnedItem();
+        if (pinnedItem) {
+          void this.treeService.unpinEntry(pinnedItem.entry.entryId);
+        }
+      } else {
+        const node = this.contextNode();
+        if (node) {
+          action.handler?.(node);
+        }
+      }
+
+      const emitNode = this.contextNode();
+      const emitRow = this.contextRow();
+      if (emitNode && emitRow) {
+        this.contextMenuAction.emit({
+          node: emitNode,
+          row: emitRow,
+          action,
+          event,
+          pinnedEntry: this.contextPinnedItem()?.entry,
+          target: this.contextTarget() ?? undefined,
+        });
+      }
     } finally {
       this.contextMenuTrigger()?.closeMenu();
     }
@@ -359,10 +456,19 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public onMenuClosed(): void {
     this.contextRow.set(null);
     this.contextNode.set(null);
+    this.contextPinnedItem.set(null);
+    this.contextTarget.set(null);
     this.contextEvent.set(null);
   }
 
   public isActionDisabled(action: TreeContextAction<T>): boolean {
+    if (action.id === TreeExplorerComponent.PIN_ACTION_ID) {
+      return false;
+    }
+    if (action.id === TreeExplorerComponent.UNPIN_ACTION_ID) {
+      return false;
+    }
+
     const row = this.contextRow();
     if (!row || row.placeholder) {
       return true;
@@ -371,11 +477,47 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   }
 
   public getContextActions(): TreeContextAction<T>[] {
+    if (this.contextTarget() === 'pinned') {
+      const pinnedItem = this.contextPinnedItem();
+      return pinnedItem ? this.getPinnedContextActions(pinnedItem) : [];
+    }
+
     const row = this.contextRow();
-    if (!row) {
+    const node = this.contextNode();
+    if (!row || !node) {
       return [];
     }
-    return this.getVisibleActions(row);
+    return this.getNodeContextActions(row, node);
+  }
+
+  public getActionLabel(action: TreeContextAction<T>): string {
+    if (action.id === TreeExplorerComponent.PIN_ACTION_ID) {
+      return 'Star';
+    }
+    if (action.id === TreeExplorerComponent.UNPIN_ACTION_ID) {
+      return 'Unstar';
+    }
+
+    const row = this.contextRow();
+    if (!row || row.placeholder) {
+      return '';
+    }
+    return action.label(row.data);
+  }
+
+  public getActionIcon(action: TreeContextAction<T>): string | null {
+    if (action.id === TreeExplorerComponent.PIN_ACTION_ID) {
+      return 'star';
+    }
+    if (action.id === TreeExplorerComponent.UNPIN_ACTION_ID) {
+      return 'star_outline';
+    }
+
+    const row = this.contextRow();
+    if (!row || row.placeholder || !action.icon) {
+      return null;
+    }
+    return action.icon(row.data);
   }
 
   public trackByRowId = (_: number, row: TreeRowViewModel<T>) => row.id;
@@ -390,24 +532,116 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     this.treeService.ensureRangeLoaded(range.start, range.end);
   }
 
-  private getVisibleActions(row: TreeRowViewModel<T>): TreeContextAction<T>[] {
+  private getNodeContextActions(
+    row: TreeRowViewModel<T>,
+    node: TreeNode<T>,
+  ): TreeContextAction<T>[] {
     if (row.placeholder) {
       return [];
     }
 
-    const actions = this.treeConfig().actions ?? [];
-    return actions.filter((action) =>
+    const actions = [...(this.treeConfig().actions ?? [])].filter((action) =>
       action.visible ? action.visible(row.data) : true,
     );
+
+    if (this.canPinNode(node)) {
+      actions.push({
+        id: TreeExplorerComponent.PIN_ACTION_ID,
+        label: () => 'Star',
+        icon: () => 'star',
+      });
+    }
+
+    return actions;
   }
 
-  private scrollToRow(nodeId: string): void {
-    this.treeService.expandToNode(nodeId);
+  private getPinnedContextActions(
+    item: TreePinnedItemView<T>,
+  ): TreeContextAction<T>[] {
+    const actions: TreeContextAction<T>[] = [];
+    const pinnedActions = this.treeConfig().pinned?.contextActions ?? [];
+
+    if (item.row && !item.row.placeholder && item.node) {
+      for (const action of pinnedActions) {
+        if (action.visible ? action.visible(item.row.data) : true) {
+          actions.push(action);
+        }
+      }
+    }
+
+    if (this.canUnpin(item.entry)) {
+      actions.push({
+        id: TreeExplorerComponent.UNPIN_ACTION_ID,
+        label: () => 'Unstar',
+        icon: () => 'star_outline',
+      });
+    }
+
+    return actions;
+  }
+
+  private canPinNode(node: TreeNode<T>): boolean {
+    if (!this.pinnedConfig().enabled) {
+      return false;
+    }
+
+    if (this.treeService.isNodePinned(node.id)) {
+      return false;
+    }
+
+    const canPin = this.treeConfig().pinned?.canPin;
+    if (!canPin) {
+      return true;
+    }
+
+    const context: TreePinnedNodeContext<T> = {
+      node,
+      pinnedEntries: this.treeService.pinnedEntries(),
+    };
+    return canPin(context);
+  }
+
+  private canUnpin(entry: TreePinnedEntry): boolean {
+    const canUnpin = this.treeConfig().pinned?.canUnpin;
+    if (!canUnpin) {
+      return true;
+    }
+
+    const pinnedItem = this.pinnedItems().find(
+      (item) => item.entry.entryId === entry.entryId,
+    );
+    return canUnpin({
+      entry,
+      node: pinnedItem?.node ?? undefined,
+      row: pinnedItem?.row ?? undefined,
+      pinnedEntries: this.treeService.pinnedEntries(),
+    });
+  }
+
+  private navigateToNode(nodeId: string): void {
+    if (!this.treeService.expandToNode(nodeId)) {
+      return;
+    }
+
+    if (this.treeConfig().selection?.mode !== SELECTION_MODES.NONE) {
+      this.treeService.selectOne(nodeId);
+    }
+
+    this.treeConfig().pinned?.onNavigate?.(nodeId);
+
     queueMicrotask(() => {
       const rows = this.visibleRows();
       const index = rows.findIndex((row) => row.id === nodeId);
       if (index >= 0) {
-        this.viewport()?.scrollToIndex(index);
+        const viewport = this.viewport();
+        viewport?.scrollToIndex(index);
+        queueMicrotask(() => {
+          const selectorId = nodeId.replaceAll('"', '\\"');
+          const rowElement = viewport?.elementRef.nativeElement.querySelector(
+            `[data-tree-row-id="${selectorId}"]`,
+          ) as HTMLElement | null;
+          rowElement?.focus();
+        });
       }
     });
   }

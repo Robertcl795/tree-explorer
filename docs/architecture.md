@@ -16,6 +16,7 @@
 - `TreeAdapter`: domain boundary for mapping, matching, and loading.
 - `Filtering`: query-driven visibility pipeline with configurable policies.
 - `Page-Aware Virtual Scrolling`: placeholder-backed paging that preserves viewport geometry.
+- `Pinned Items`: optional root-level shortcut section backed by stable pinned entry records.
 
 ## Reading Order
 
@@ -109,6 +110,22 @@ flowchart TD
   J --> K[Viewport render and range loading]
 ```
 
+## Pinned Items Data Flow
+
+```mermaid
+flowchart TD
+  A[User opens row context menu] --> B[Star action]
+  B --> C[TreeStateService pinNode]
+  C --> D[Update local pinned entries]
+  D --> E{PinnedStore addPinned}
+  E -- available --> F[Persist to API and reconcile entryId]
+  E -- missing --> G[Local-only pinned state]
+  F --> H[Pinned section render]
+  G --> H
+  H --> I[User clicks pinned link]
+  I --> J[expandPath + scroll + select]
+```
+
 ## Filtering Contract
 
 - Core lifecycle:
@@ -137,5 +154,6 @@ flowchart TD
 
 - Filtering review: [docs/filtering-review.md](./filtering-review.md)
 - Page-aware loading: [docs/page-aware-virtual-scroll.md](./page-aware-virtual-scroll.md)
+- Pinned items: [docs/pinned-items.md](./pinned-items.md)
 - Quality report: [docs/quality-report.md](./quality-report.md)
 - Roadmap: [docs/next-steps.md](./next-steps.md)

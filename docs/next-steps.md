@@ -15,7 +15,7 @@ This roadmap is architecture-first and optimized for large datasets, virtualizat
 1. Add combined filtering + page-aware integration tests.
 2. Add query-performance instrumentation and thresholds.
 3. Add wrapper-level debounce defaults for high-frequency typing.
-4. Add cookbook docs for API-side pagination contracts and caching strategy.
+4. Add integration tests for pinned store flows (load/add/remove/reorder failures + rollback).
 
 ## Filtering Roadmap
 
@@ -51,6 +51,22 @@ Cookbook stories:
 
 - [Filtering cookbook stories](../packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts) (includes live search bar + play-tests)
 - [Baseline filtering stories](../packages/tree-explorer/src/stories/tree-explorer.filtering.stories.ts)
+- [Pinned cookbook story](../packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts)
+
+## Pinned Items Roadmap
+
+Implemented now:
+
+- Root-level pinned section (`TreeConfig.pinned.enabled`).
+- Star/Unstar via centralized container context menu.
+- Navigate to original node (expand loaded path + scroll + select/focus when available).
+- Optional `TreePinnedStore` hooks for GET/POST/DELETE/reorder.
+
+Next increments:
+
+1. Add stale-node recovery policy hooks (auto-remove vs warn vs keep).
+2. Add bounded bulk operations (`pinAllVisible`, `clearPinned`) behind explicit config.
+3. Evaluate optional `expandable` pinned shortcuts with strict depth/perf limits.
 
 ## Adapter Techniques
 

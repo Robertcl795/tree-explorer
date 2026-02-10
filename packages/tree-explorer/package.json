@@ -8,7 +8,7 @@
   "types": "./index.d.ts",
   "scripts": {
     "build": "ngc -p tsconfig.lib.json",
-    "test": "ng test tree-explorer --watch=false --browsers=ChromeHeadless --no-progress",
+    "test": "CHROME_BIN=$(node -e \"process.stdout.write(require('puppeteer').executablePath())\") ng test tree-explorer --watch=false --browsers=ChromeHeadless --no-progress",
     "typecheck": "tsc -p tsconfig.lib.json --noEmit",
     "lint": "echo 'No lint configured for @tree-explorer'",
     "storybook": "cd ../.. && CI=1 ng run tree-explorer:storybook",

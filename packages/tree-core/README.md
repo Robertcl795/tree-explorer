@@ -9,6 +9,7 @@ Framework-agnostic engine and contracts for tree rendering, selection, lazy load
 - Lit wrapper POC: [@lit-tree-explorer README](../lit-tree-explorer/README.md)
 - Architecture: [docs/architecture.md](../../docs/architecture.md)
 - Filtering review: [docs/filtering-review.md](../../docs/filtering-review.md)
+- Pinned items: [docs/pinned-items.md](../../docs/pinned-items.md)
 
 ## Design Intent
 
@@ -89,6 +90,26 @@ interface PageRequest {
 interface PageResult<TSource> {
   items: TSource[];
   totalCount: number;
+}
+```
+
+### Pinned contract
+
+```ts
+interface TreePinnedEntry {
+  entryId: string;
+  nodeId: TreeId;
+  label?: string;
+  icon?: string;
+  order: number;
+  meta?: unknown;
+}
+
+interface TreePinnedStore<T> {
+  loadPinned?: () => Promise<TreePinnedEntry[]> | Observable<TreePinnedEntry[]>;
+  addPinned?: (node: TreeNode<T>) => Promise<TreePinnedEntry> | Observable<TreePinnedEntry>;
+  removePinned?: (entry: TreePinnedEntry, node?: TreeNode<T>) => Promise<void> | Observable<void>;
+  reorderPinned?: (entries: TreePinnedEntry[]) => Promise<void> | Observable<void>;
 }
 ```
 

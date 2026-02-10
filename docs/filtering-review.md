@@ -154,3 +154,8 @@ Reference tests:
 Cookbook stories:
 
 - [packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts](../packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts)
+- [packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts](../packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts)
+
+Related feature doc:
+
+- [docs/pinned-items.md](./pinned-items.md)

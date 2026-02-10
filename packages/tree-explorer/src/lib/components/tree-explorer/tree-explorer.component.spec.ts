@@ -41,8 +41,7 @@ describe('TreeExplorerComponent', () => {
   });
 
   it('renders root rows', () => {
-    const rows = fixture.nativeElement.querySelectorAll('td-tree-item');
-    expect(rows.length).toBe(1);
+    expect(component.visibleRows().length).toBe(1);
   });
 
   it('selects rows on click when enabled', () => {
@@ -61,5 +60,63 @@ describe('TreeExplorerComponent', () => {
     fixture.componentRef.setInput('filterQuery', null);
     fixture.detectChanges();
     expect(component.visibleRows().length).toBe(1);
+  });
+
+  it('shows pin action in context menu when pinned is enabled', () => {
+    fixture.componentRef.setInput('config', {
+      ...config,
+      pinned: { enabled: true },
+    });
+    fixture.detectChanges();
+
+    const row = component.visibleRows()[0];
+    const node = (component as any).treeService.getNode(row.id);
+    component.contextRow.set(row);
+    component.contextNode.set(node);
+    component.contextTarget.set('node');
+    component.contextEvent.set(new MouseEvent('contextmenu'));
+
+    const actionIds = component.getContextActions().map((action) => action.id);
+    expect(actionIds).toContain('__tree_pin__');
+  });
+
+  it('pins a row through the context menu action handler', () => {
+    fixture.componentRef.setInput('config', {
+      ...config,
+      pinned: { enabled: true },
+    });
+    fixture.detectChanges();
+
+    const row = component.visibleRows()[0];
+    const node = (component as any).treeService.getNode(row.id);
+    component.contextRow.set(row);
+    component.contextNode.set(node);
+    component.contextTarget.set('node');
+    component.contextEvent.set(new MouseEvent('contextmenu'));
+
+    const pinAction = component
+      .getContextActions()
+      .find((action) => action.id === '__tree_pin__');
+
+    expect(pinAction).toBeDefined();
+    component.onContextAction(pinAction!);
+    expect(component.pinnedItems().some((item) => item.entry.nodeId === 'root')).toBeTrue();
+  });
+
+  it('navigates to pinned node and selects it', () => {
+    fixture.componentRef.setInput('config', {
+      ...config,
+      pinned: { enabled: true, ids: ['child'] },
+    });
+    fixture.detectChanges();
+
+    const pinnedItem = component.pinnedItems()[0];
+    expect(pinnedItem).toBeDefined();
+
+    component.onPinnedClick(new MouseEvent('click'), pinnedItem);
+
+    const selectedIds = Array.from((component as any).treeService.selectedIds());
+    expect(selectedIds).toEqual(['child']);
+    expect((component as any).treeService.expandedIds().has('root')).toBeTrue();
   });
 });

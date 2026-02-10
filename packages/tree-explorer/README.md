@@ -10,6 +10,7 @@ Baseline: Angular `19.2.x` in this workspace.
 - Core engine: [@tree-core README](../tree-core/README.md)
 - Lit wrapper POC: [@lit-tree-explorer README](../lit-tree-explorer/README.md)
 - Architecture: [docs/architecture.md](../../docs/architecture.md)
+- Pinned items: [docs/pinned-items.md](../../docs/pinned-items.md)
 - Next steps: [docs/next-steps.md](../../docs/next-steps.md)
 
 ## Architectural Role
@@ -127,6 +128,35 @@ tree-explorer {
   --td-tree-highlight-padding-inline: 2px;
 }
 ```
+
+## Pinned Items Usage
+
+Pinned shortcuts are optional and disabled by default.
+
+```ts
+import { TreeConfig, TreePinnedStore } from '@tree-core';
+
+const pinnedStore: TreePinnedStore<Item> = {
+  loadPinned: () => fetch('/api/pinned').then((res) => res.json()),
+  addPinned: (node) =>
+    fetch('/api/pinned', {
+      method: 'POST',
+      body: JSON.stringify({ nodeId: node.id }),
+    }).then((res) => res.json()),
+  removePinned: (entry) => fetch(`/api/pinned/${entry.entryId}`, { method: 'DELETE' }).then(() => undefined),
+};
+
+const config: Partial<TreeConfig<Item>> = {
+  pinned: {
+    enabled: true,
+    label: 'Pinned',
+    dnd: { enabled: true },
+    store: pinnedStore,
+  },
+};
+```
+
+See [docs/pinned-items.md](../../docs/pinned-items.md) for full contract and edge-case guidance.
 
 ## Adapter Example (Paged)
 

@@ -1,7 +1,7 @@
 import { TreeContextAction } from './tree-context-action';
 import { TreeLoadError } from './tree-errors';
 import { DEFAULT_TREE_FILTERING_CONFIG, TreeFilteringConfig } from './tree-filter';
-import { TreeId } from './tree-node';
+import { TreePinnedConfig } from './tree-pinned';
 
 export enum TREE_DENSITY {
   COMPACT = 'compact',
@@ -55,10 +55,7 @@ export interface TreeConfig<T> {
   /** Enable drag and drop behavior in the UI layer. */
   dragDrop?: boolean;
   /** Optional pinned section configuration. */
-  pinned?: {
-    ids: TreeId[];
-    label?: string;
-  };
+  pinned?: TreePinnedConfig<T>;
   /** Accessible label for the tree container. */
   ariaLabel?: string;
   /** Default icon when adapter does not provide one. */

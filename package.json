@@ -42,6 +42,7 @@
     "dev": "pnpm storybook"
   },
   "dependencies": {
+    "@angular/animations": "^19.2.0",
     "@angular/cdk": "^19.2.19",
     "@angular/common": "^19.2.0",
     "@angular/compiler": "^19.2.0",
@@ -78,6 +79,7 @@
     "karma-jasmine-html-reporter": "~2.1.0",
     "keycharm": "^0.4.0",
     "ng-packagr": "^19.2.0",
+    "puppeteer": "^24.4.0",
     "storybook": "9.0.8",
     "typescript": "~5.6.3",
     "vis-data": "^8.0.3",

@@ -9,6 +9,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Unified state orchestration in `@tree-core`.
 - Query-based filtering with backward compatibility for `isVisible`.
 - Page-aware lazy loading with placeholders and range-driven page fetch.
+- Optional pinned shortcuts with store-driven persistence hooks.
 
 ## Tree Explorer Identity
 
@@ -33,6 +34,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Angular wrapper (`@tree-explorer`) with CDK virtual scroll.
 - Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
 - Storybook coverage for advanced, filtering, and page-aware scenarios.
+- Pinned cookbook story (star/unstar, navigate-to-original, reorder, mocked GET/POST/DELETE).
 - Angular highlight pipe for matched labels (`TreeHighlightMatchPipe`), driven by current `filterQuery`.
 - Theme tokens for highlight rendering (`--td-tree-highlight-*`) so matches can align with host design systems.
 
@@ -107,12 +109,14 @@ Start here if you are new:
 1. [Architecture](./docs/architecture.md)
 2. [Next Steps](./docs/next-steps.md)
 3. [Filtering Review](./docs/filtering-review.md)
+4. [Pinned Items](./docs/pinned-items.md)
 
 ### Architecture and Design
 
 - [Architecture](./docs/architecture.md)
 - [Filtering Review](./docs/filtering-review.md)
 - [Page-Aware Virtual Scroll](./docs/page-aware-virtual-scroll.md)
+- [Pinned Items](./docs/pinned-items.md)
 
 ### Quality and Planning
 

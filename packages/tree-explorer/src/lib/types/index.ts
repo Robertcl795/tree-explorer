@@ -13,6 +13,8 @@ export type {
   TreeDragEvent,
   TreeNode,
   TreeNodeEvent,
+  TreePinnedEntry,
+  TreePinnedItemView,
   TreeRowViewModel,
   TreeSelectionEvent,
 } from './tree.types';

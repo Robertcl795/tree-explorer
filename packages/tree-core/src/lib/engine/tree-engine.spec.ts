@@ -91,6 +91,8 @@ describe('TreeEngine', () => {
       node('d2', 'D2', { parentId: 'docs', level: 2 }),
       node('d3', 'D3', { parentId: 'docs', level: 2 }),
     ]);
+    engine.toggleExpand('root', false);
+    engine.toggleExpand('docs', false);
 
     engine.selectToggle('docs');
     engine.selectToggle('d2');

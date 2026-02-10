@@ -10,14 +10,35 @@ import {
   TreeFilterInput,
   TreeLoadError,
   TreeNode,
+  TreePinnedConfig,
+  TreePinnedEntry,
+  TreePinnedStore,
+  TreePinnedStoreResult,
   TreeRowViewModel,
   mapSourcesToNodeGraph,
 } from '@tree-core';
 import { TREE_CONFIG } from '../tokens/tree.configs';
+import { TreePinnedItemView } from '../types';
 
 interface ResolvedLoadChildrenResult<TSource> {
   items: TSource[];
   totalCount?: number;
+}
+
+export interface ResolvedPinnedConfig<T> {
+  enabled: boolean;
+  label: string;
+  ids: string[];
+  entries: TreePinnedEntry[];
+  store?: TreePinnedStore<T>;
+  maxItems?: number;
+  dndEnabled: boolean;
+  expandable: boolean;
+  canPin?: TreePinnedConfig<T>['canPin'];
+  canUnpin?: TreePinnedConfig<T>['canUnpin'];
+  resolvePinnedLabel?: TreePinnedConfig<T>['resolvePinnedLabel'];
+  resolvePinnedIcon?: TreePinnedConfig<T>['resolvePinnedIcon'];
+  onNavigate?: TreePinnedConfig<T>['onNavigate'];
 }
 
 @Injectable()
@@ -31,6 +52,10 @@ export class TreeStateService<TSource, T = TSource> {
   private readonly rootLoading = signal(false);
   private readonly rootError = signal<TreeLoadError | null>(null);
   private readonly lastError = signal<TreeLoadError | null>(null);
+  private readonly pinnedEntriesState = signal<TreePinnedEntry[]>([]);
+  private readonly pinnedLoadingState = signal(false);
+  private readonly pinnedErrorState = signal<TreeLoadError | null>(null);
+  private pinnedLoadVersion = 0;
 
   public readonly visibleRows = computed((): TreeRowViewModel<T>[] => {
     this.stateVersion();
@@ -48,6 +73,65 @@ export class TreeStateService<TSource, T = TSource> {
   public readonly rootLoadError = computed(() => this.rootError());
 
   public readonly loadError = computed(() => this.lastError());
+
+  public readonly pinnedEntries = computed(() => this.pinnedEntriesState());
+
+  public readonly pinnedLoading = computed(() => this.pinnedLoadingState());
+
+  public readonly pinnedError = computed(() => this.pinnedErrorState());
+
+  public readonly pinnedConfig = computed(() =>
+    this.resolvePinnedConfig(this.configRef().pinned),
+  );
+
+  public readonly pinnedItems = computed((): TreePinnedItemView<T>[] => {
+    this.stateVersion();
+    const adapter = this.adapterRef();
+    if (!adapter) {
+      return [];
+    }
+
+    const config = this.configRef();
+    const pinnedConfig = this.resolvePinnedConfig(config.pinned);
+    if (!pinnedConfig.enabled) {
+      return [];
+    }
+
+    const entries = this.sortedPinnedEntries();
+    if (entries.length === 0) {
+      return [];
+    }
+
+    const rowsById = new Map(
+      this.engine
+        .getRowViewModelsById(
+          adapter,
+          config,
+          entries.map((entry) => entry.nodeId),
+        )
+        .map((row) => [row.id, row]),
+    );
+
+    return entries.map((entry) => {
+      const row = rowsById.get(entry.nodeId) ?? null;
+      const node = this.engine.getNode(entry.nodeId) ?? null;
+      const resolvedLabel = pinnedConfig.resolvePinnedLabel
+        ? pinnedConfig.resolvePinnedLabel(entry, { entry, node: node ?? undefined, row: row ?? undefined })
+        : undefined;
+      const resolvedIcon = pinnedConfig.resolvePinnedIcon
+        ? pinnedConfig.resolvePinnedIcon(entry, { entry, node: node ?? undefined, row: row ?? undefined })
+        : undefined;
+
+      return {
+        entry,
+        node,
+        row,
+        label: resolvedLabel ?? entry.label ?? row?.label ?? node?.id ?? entry.nodeId,
+        icon: resolvedIcon ?? entry.icon ?? row?.icon ?? null,
+        missing: !node,
+      };
+    });
+  });
 
   public readonly selectedIds = computed(() => {
     this.stateVersion();
@@ -80,6 +164,7 @@ export class TreeStateService<TSource, T = TSource> {
       };
       this.configRef.set(merged as TreeConfig<T>);
       this.engine.configure(merged as TreeConfig<T>);
+      this.syncPinnedState(this.resolvePinnedConfig((merged as TreeConfig<T>).pinned));
     }
   }
 
@@ -109,6 +194,7 @@ export class TreeStateService<TSource, T = TSource> {
     this.configRef.set(merged as TreeConfig<T>);
     this.engine.configure(merged as TreeConfig<T>);
     this.reapplyActiveFilter();
+    this.syncPinnedState(this.resolvePinnedConfig((merged as TreeConfig<T>).pinned));
     this.bumpVersion();
   }
 
@@ -319,17 +405,167 @@ export class TreeStateService<TSource, T = TSource> {
     return this.engine.getNode(id);
   }
 
-  public getPinnedRows(ids: string[]): TreeRowViewModel<T>[] {
-    const adapter = this.adapterRef();
-    if (!adapter) {
-      return [];
+  public isNodePinned(nodeId: string): boolean {
+    return this.pinnedEntriesState().some((entry) => entry.nodeId === nodeId);
+  }
+
+  public async pinNode(nodeId: string): Promise<boolean> {
+    const node = this.engine.getNode(nodeId);
+    if (!node || this.isNodePinned(nodeId)) {
+      return false;
     }
 
-    return this.engine.getRowViewModelsById(
-      adapter,
-      this.configRef(),
-      ids,
-    );
+    const pinnedConfig = this.resolvePinnedConfig(this.configRef().pinned);
+    if (!pinnedConfig.enabled) {
+      return false;
+    }
+
+    if (
+      pinnedConfig.canPin &&
+      !pinnedConfig.canPin({
+        node,
+        pinnedEntries: this.sortedPinnedEntries(),
+      })
+    ) {
+      return false;
+    }
+
+    const entries = this.sortedPinnedEntries();
+    if (
+      typeof pinnedConfig.maxItems === 'number' &&
+      pinnedConfig.maxItems > 0 &&
+      entries.length >= pinnedConfig.maxItems
+    ) {
+      return false;
+    }
+
+    const optimisticEntry: TreePinnedEntry = {
+      entryId: `local:${node.id}:${Date.now()}`,
+      nodeId: node.id,
+      label: undefined,
+      icon: undefined,
+      order: entries.length,
+    };
+
+    this.pinnedEntriesState.set(this.normalizePinnedEntries([...entries, optimisticEntry]));
+    this.bumpVersion();
+
+    if (!pinnedConfig.store?.addPinned) {
+      return true;
+    }
+
+    try {
+      const persisted = await this.resolvePinnedStoreResult(pinnedConfig.store.addPinned(node));
+      const normalizedPersisted = this.normalizePinnedEntry(persisted, optimisticEntry.order);
+      const nextEntries = this.sortedPinnedEntries().map((entry) =>
+        entry.entryId === optimisticEntry.entryId ? normalizedPersisted : entry,
+      );
+      this.pinnedEntriesState.set(this.normalizePinnedEntries(nextEntries));
+      this.bumpVersion();
+      return true;
+    } catch (error) {
+      this.pinnedEntriesState.set(
+        this.sortedPinnedEntries().filter((entry) => entry.entryId !== optimisticEntry.entryId),
+      );
+      this.pinnedErrorState.set({
+        scope: 'root',
+        error,
+        message: this.formatError(error),
+      });
+      this.bumpVersion();
+      return false;
+    }
+  }
+
+  public async unpinEntry(entryId: string): Promise<boolean> {
+    const entries = this.sortedPinnedEntries();
+    const target = entries.find((entry) => entry.entryId === entryId);
+    if (!target) {
+      return false;
+    }
+
+    const pinnedConfig = this.resolvePinnedConfig(this.configRef().pinned);
+    const node = this.engine.getNode(target.nodeId);
+    if (
+      pinnedConfig.canUnpin &&
+      !pinnedConfig.canUnpin({
+        entry: target,
+        node,
+        pinnedEntries: entries,
+      })
+    ) {
+      return false;
+    }
+
+    const withoutTarget = entries.filter((entry) => entry.entryId !== entryId);
+    this.pinnedEntriesState.set(this.normalizePinnedEntries(withoutTarget));
+    this.bumpVersion();
+
+    if (!pinnedConfig.store?.removePinned) {
+      return true;
+    }
+
+    try {
+      await this.resolvePinnedStoreResult(pinnedConfig.store.removePinned(target, node));
+      return true;
+    } catch (error) {
+      this.pinnedEntriesState.set(this.normalizePinnedEntries(entries));
+      this.pinnedErrorState.set({
+        scope: 'root',
+        error,
+        message: this.formatError(error),
+      });
+      this.bumpVersion();
+      return false;
+    }
+  }
+
+  public async reorderPinned(previousIndex: number, currentIndex: number): Promise<boolean> {
+    const previousEntries = this.sortedPinnedEntries();
+    const entries = [...previousEntries];
+    if (
+      previousIndex < 0 ||
+      currentIndex < 0 ||
+      previousIndex >= entries.length ||
+      currentIndex >= entries.length ||
+      previousIndex === currentIndex
+    ) {
+      return false;
+    }
+
+    const [moved] = entries.splice(previousIndex, 1);
+    if (!moved) {
+      return false;
+    }
+    entries.splice(currentIndex, 0, moved);
+    const reordered = entries.map((entry, index) => ({
+      ...entry,
+      order: index,
+    }));
+    const pinnedConfig = this.resolvePinnedConfig(this.configRef().pinned);
+
+    this.pinnedEntriesState.set(this.normalizePinnedEntries(reordered));
+    this.bumpVersion();
+
+    if (!pinnedConfig.store?.reorderPinned) {
+      return true;
+    }
+
+    try {
+      await this.resolvePinnedStoreResult(
+        pinnedConfig.store.reorderPinned(this.normalizePinnedEntries(reordered)),
+      );
+      return true;
+    } catch (error) {
+      this.pinnedEntriesState.set(this.normalizePinnedEntries(previousEntries));
+      this.pinnedErrorState.set({
+        scope: 'root',
+        error,
+        message: this.formatError(error),
+      });
+      this.bumpVersion();
+      return false;
+    }
   }
 
   public getPagedNodeDebugState(parentId: string) {
@@ -337,8 +573,17 @@ export class TreeStateService<TSource, T = TSource> {
     return this.engine.getPagedNodeDebugState(parentId);
   }
 
-  public expandToNode(nodeId: string): void {
+  public expandToNode(nodeId: string): boolean {
+    if (!this.engine.getNode(nodeId)) {
+      return false;
+    }
     this.engine.expandPath(nodeId);
+    this.bumpVersion();
+    return true;
+  }
+
+  public selectOne(nodeId: string): void {
+    this.engine.selectOne(nodeId);
     this.bumpVersion();
   }
 
@@ -512,6 +757,133 @@ export class TreeStateService<TSource, T = TSource> {
 
     const maybe = value as { items?: unknown; totalCount?: unknown };
     return Array.isArray(maybe.items) && typeof maybe.totalCount === 'number';
+  }
+
+  private resolvePinnedConfig(config: TreePinnedConfig<T> | undefined): ResolvedPinnedConfig<T> {
+    const resolvedEntries = this.normalizePinnedEntries(config?.entries ?? []);
+    const resolvedIds = (config?.ids ?? [])
+      .map((id) => `${id}`.trim())
+      .filter((id) => id.length > 0);
+    const inferredEnabled = resolvedEntries.length > 0 || resolvedIds.length > 0;
+
+    return {
+      enabled: config?.enabled ?? inferredEnabled,
+      label: config?.label?.trim() || 'Pinned',
+      ids: resolvedIds,
+      entries: resolvedEntries,
+      store: config?.store,
+      maxItems: config?.maxItems,
+      dndEnabled: config?.dnd?.enabled === true,
+      expandable: config?.expandable === true,
+      canPin: config?.canPin,
+      canUnpin: config?.canUnpin,
+      resolvePinnedLabel: config?.resolvePinnedLabel,
+      resolvePinnedIcon: config?.resolvePinnedIcon,
+      onNavigate: config?.onNavigate,
+    };
+  }
+
+  private syncPinnedState(config: ResolvedPinnedConfig<T>): void {
+    if (!config.enabled) {
+      this.pinnedEntriesState.set([]);
+      this.pinnedLoadingState.set(false);
+      this.pinnedErrorState.set(null);
+      this.pinnedLoadVersion += 1;
+      return;
+    }
+
+    this.pinnedErrorState.set(null);
+    const staticEntries = this.pinnedEntriesFromConfig(config);
+    if (!config.store?.loadPinned) {
+      this.pinnedEntriesState.set(staticEntries);
+      return;
+    }
+
+    const loadVersion = ++this.pinnedLoadVersion;
+    this.pinnedLoadingState.set(true);
+    this.pinnedEntriesState.set(staticEntries);
+
+    this.resolvePinnedStoreResult(config.store.loadPinned())
+      .then((loadedEntries) => {
+        if (this.pinnedLoadVersion !== loadVersion) {
+          return;
+        }
+
+        const normalized = this.normalizePinnedEntries(loadedEntries);
+        this.pinnedEntriesState.set(
+          normalized.length > 0 ? normalized : staticEntries,
+        );
+        this.pinnedLoadingState.set(false);
+        this.bumpVersion();
+      })
+      .catch((error) => {
+        if (this.pinnedLoadVersion !== loadVersion) {
+          return;
+        }
+
+        this.pinnedLoadingState.set(false);
+        this.pinnedErrorState.set({
+          scope: 'root',
+          error,
+          message: this.formatError(error),
+        });
+        this.pinnedEntriesState.set(staticEntries);
+        this.bumpVersion();
+      });
+  }
+
+  private pinnedEntriesFromConfig(config: ResolvedPinnedConfig<T>): TreePinnedEntry[] {
+    if (config.entries.length > 0) {
+      return config.entries;
+    }
+
+    return this.normalizePinnedEntries(
+      config.ids.map((nodeId, index) => ({
+        entryId: `static:${nodeId}`,
+        nodeId,
+        order: index,
+      })),
+    );
+  }
+
+  private normalizePinnedEntries(entries: readonly TreePinnedEntry[]): TreePinnedEntry[] {
+    const byNode = new Map<string, TreePinnedEntry>();
+
+    entries.forEach((entry, index) => {
+      const normalized = this.normalizePinnedEntry(entry, index);
+      if (!normalized.nodeId) {
+        return;
+      }
+      byNode.set(normalized.nodeId, normalized);
+    });
+
+    return Array.from(byNode.values())
+      .sort((left, right) => left.order - right.order)
+      .map((entry, index) => ({ ...entry, order: index }));
+  }
+
+  private normalizePinnedEntry(entry: TreePinnedEntry, fallbackOrder: number): TreePinnedEntry {
+    return {
+      entryId: `${entry.entryId || `entry:${entry.nodeId}:${fallbackOrder}`}`,
+      nodeId: `${entry.nodeId}`.trim(),
+      label: entry.label,
+      icon: entry.icon,
+      order:
+        typeof entry.order === 'number' && Number.isFinite(entry.order)
+          ? entry.order
+          : fallbackOrder,
+      meta: entry.meta,
+    };
+  }
+
+  private sortedPinnedEntries(): TreePinnedEntry[] {
+    return this.normalizePinnedEntries(this.pinnedEntriesState());
+  }
+
+  private async resolvePinnedStoreResult<TResult>(
+    result: TreePinnedStoreResult<TResult>,
+  ): Promise<TResult> {
+    return this.resolveUnknownResult(result) as Promise<TResult>;
   }
 
   private formatError(error: unknown): string {
