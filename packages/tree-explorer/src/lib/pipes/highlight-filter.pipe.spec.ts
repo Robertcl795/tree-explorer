@@ -5,12 +5,13 @@ describe('TreeHighlightMatchPipe', () => {
 
   it('highlights a simple string query', () => {
     const result = pipe.transform('Budget FY26.xlsx', 'budget');
-    expect(result).toContain('<mark>Budget</mark>');
+    expect(result).toContain('>Budget</mark>');
+    expect(result).toContain('class="td-tree-highlight-mark"');
   });
 
   it('highlights using engine-provided ranges when available', () => {
     const result = pipe.transform('Roadmap.md', 'road', [{ start: 0, end: 7 }]);
-    expect(result).toBe('<mark>Roadmap</mark>.md');
+    expect(result).toContain('>Roadmap</mark>.md');
   });
 
   it('escapes html in labels before rendering highlight tags', () => {

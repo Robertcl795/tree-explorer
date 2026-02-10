@@ -1,4 +1,9 @@
 :host {
+  --td-tree-highlight-bg: #fff3a0;
+  --td-tree-highlight-color: inherit;
+  --td-tree-highlight-radius: 2px;
+  --td-tree-highlight-padding-inline: 1px;
+
   display: block;
   width: 100%;
   height: 100%;

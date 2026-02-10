@@ -7,6 +7,10 @@ import { TreeFilterInput, TreeFilterQuery, TreeMatchRange } from '@tree-core';
   pure: true,
 })
 export class TreeHighlightMatchPipe implements PipeTransform {
+  private static readonly MARK_OPEN =
+    '<mark class="td-tree-highlight-mark" style="background: var(--td-tree-highlight-bg, #fff3a0); color: var(--td-tree-highlight-color, currentColor); border-radius: var(--td-tree-highlight-radius, 2px); padding-inline: var(--td-tree-highlight-padding-inline, 1px);">';
+  private static readonly MARK_CLOSE = '</mark>';
+
   transform(
     label: string | null | undefined,
     filterQuery: TreeFilterInput,
@@ -171,7 +175,7 @@ export class TreeHighlightMatchPipe implements PipeTransform {
         output += this.escapeHtml(source.slice(cursor, range.start));
       }
 
-      output += `<mark>${this.escapeHtml(source.slice(range.start, range.end))}</mark>`;
+      output += `${TreeHighlightMatchPipe.MARK_OPEN}${this.escapeHtml(source.slice(range.start, range.end))}${TreeHighlightMatchPipe.MARK_CLOSE}`;
       cursor = range.end;
     }
 

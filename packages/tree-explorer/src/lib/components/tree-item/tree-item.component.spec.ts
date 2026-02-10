@@ -54,7 +54,8 @@ describe('TreeItemComponent', () => {
     fixture.detectChanges();
 
     const label = fixture.nativeElement.querySelector('.tree-item-label');
-    expect(label?.innerHTML).toContain('<mark>Root</mark>');
+    expect(label?.innerHTML).toContain('>Root</mark>');
+    expect(label?.innerHTML).toContain('td-tree-highlight-mark');
   });
 
 });

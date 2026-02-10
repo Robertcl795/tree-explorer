@@ -112,6 +112,22 @@ Example:
 <span [innerHTML]="row.label | treeHighlightMatch: filterQuery : row.highlightRanges"></span>
 ```
 
+Theme tokens:
+
+- `--td-tree-highlight-bg` (default `#fff3a0`)
+- `--td-tree-highlight-color` (default `inherit`)
+- `--td-tree-highlight-radius` (default `2px`)
+- `--td-tree-highlight-padding-inline` (default `1px`)
+
+```css
+tree-explorer {
+  --td-tree-highlight-bg: #dff6ff;
+  --td-tree-highlight-color: #0b3b5a;
+  --td-tree-highlight-radius: 3px;
+  --td-tree-highlight-padding-inline: 2px;
+}
+```
+
 ## Adapter Example (Paged)
 
 ```ts

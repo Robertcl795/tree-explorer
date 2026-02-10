@@ -34,6 +34,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
 - Storybook coverage for advanced, filtering, and page-aware scenarios.
 - Angular highlight pipe for matched labels (`TreeHighlightMatchPipe`), driven by current `filterQuery`.
+- Theme tokens for highlight rendering (`--td-tree-highlight-*`) so matches can align with host design systems.
 
 ## Platform Baseline
 
