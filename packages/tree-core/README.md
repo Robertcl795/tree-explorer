@@ -14,8 +14,20 @@ Framework-agnostic engine and contracts for tree rendering, selection, lazy load
 ## Design Intent
 
 - Adapters own domain-specific mapping and data fetching.
-- `TreeEngine` owns tree state, flattening, selection, loading/error state, and page orchestration.
+- `TreeEngine` owns tree state, flattening, selection, loading/error state, paging, visibility projection, and navigation orchestration.
 - UI wrappers consume `TreeRowViewModel` and remain presentation-first.
+
+## Engine module layout
+
+- `engine/tree-engine.ts`: facade/orchestrator.
+- `engine/node-index.ts`: ancestor/descendant lookup helpers.
+- `engine/flattening.ts`: flattened-node caching and traversal.
+- `engine/expansion.ts`: expand/collapse and path expansion transitions.
+- `engine/selection.ts`: selection transitions and range helpers.
+- `engine/paging.ts`: per-parent page states, placeholder slots, page patching.
+- `engine/loading.ts`: loading/error state helpers.
+- `engine/visibility.ts`: query normalization, visibility, row projection.
+- `engine/navigation.ts`: navigation path helpers.
 
 ## Core Contracts
 
@@ -34,15 +46,31 @@ interface TreeAdapter<TSource, T = TSource> {
   matches?: (data: T, query: TreeFilterQuery) => boolean;
   getSearchText?: (data: T) => string;
   highlightRanges?: (label: string, query: TreeFilterQuery) => TreeMatchRange[];
-  isLeaf?: (data: T) => boolean | undefined;
+  isLeaf?: (data: T, ctx?: TreeLeafContext<T>) => boolean | undefined;
   hasChildren?: (data: T) => boolean | undefined;
   getChildren?: (data: T) => TSource[] | null | undefined;
+  resolvePathToNode?: (targetId: TreeId) => TreeResolvePathResponse;
   getPagination?: (node: TreeNode<T>, data?: T) => TreePaginationConfig | undefined;
   loadChildren?: (
     node: TreeNode<T>,
     reqOrSource?: PageRequest | TSource,
     data?: T,
   ) => TreeChildrenResult<TSource> | TreePagedChildrenResult<TSource>;
+}
+
+interface TreeLeafContext<T> {
+  node?: TreeNode<T>;
+  parentId: TreeId | null;
+  level: number;
+}
+
+interface TreeResolvePathResult {
+  targetId: TreeId;
+  steps: Array<{
+    nodeId: TreeId;
+    parentId: TreeId | null;
+    pageHint?: TreePageHint;
+  }>;
 }
 ```
 
@@ -80,11 +108,18 @@ interface TreePaginationConfig {
   enabled: boolean;
   pageSize: number;
   pageIndexing?: TreePageIndexing;
+  initialTotalCount?: number;
 }
 
 interface PageRequest {
   pageIndex: number;
   pageSize: number;
+}
+
+interface TreePageHint {
+  pageIndex: number;
+  pageSize?: number;
+  pageIndexing?: TreePageIndexing;
 }
 
 interface PageResult<TSource> {
@@ -129,6 +164,8 @@ interface TreePinnedStore<T> {
   - Applies non-paged lazy children.
 - `setPagination(parentId, config)`
   - Registers per-parent pagination behavior.
+- `primePagedPlaceholders(parentId, totalCount)`
+  - Optionally seeds placeholder slots before first successful page response.
 - `applyPagedChildren(parentId, request, directChildren, totalCount, allNodes?)`
   - Patches loaded page items into a fixed-length child list.
 - `ensureRangeLoaded(parentId, { start, end })`
@@ -137,6 +174,8 @@ interface TreePinnedStore<T> {
   - In-flight dedupe and page-level error tracking.
 - `setFilter(filterQuery)`, `clearFilter()`, `reapplyFilter(adapter)`
   - Filter state lifecycle and policy application.
+- `expandPath(nodeId)`
+  - Expands loaded ancestor path for navigation.
 - `getFilteredFlatList(adapter, config)`
   - Returns filtered row view-models for wrappers.
 - `selectRange(fromId, toId, adapter?, config?)`
@@ -187,6 +226,14 @@ If you already use `loadChildren(node, source?, data?)`, no change is required.
 
 If you already use `adapter.isVisible`, no change is required. It remains supported as the baseline visibility gate.
 
+If you already use `adapter.isLeaf(data)`, no change is required. One-arg implementations remain valid.
+
+Updated leaf precedence:
+
+1. `adapter.isLeaf(data, ctx)` when it returns boolean.
+2. `node.isLeaf` when present.
+3. Default heuristic (`childrenIds`, `hasChildren`, load capability fallback).
+
 To adopt query-driven filtering:
 
 1. Call `TreeEngine.setFilter(filterQuery)` from your wrapper/service.
@@ -202,6 +249,12 @@ To adopt page-aware loading:
 1. Add `getPagination` for nodes with paged children.
 2. Accept `PageRequest` in `loadChildren`.
 3. Return `PageResult<TSource>` with `totalCount` from your API metadata/header.
+
+To adopt async pinned navigation to unloaded targets:
+
+1. Implement `resolvePathToNode(targetId)` in adapter.
+2. Return root->target path steps, with `pageHint` for paged parents when needed.
+3. Keep wrappers thin and let service/engine orchestrate load + expand + select/focus.
 
 ## Guarantees
 

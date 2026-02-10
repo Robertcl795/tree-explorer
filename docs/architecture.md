@@ -1,176 +1,217 @@
 # Architecture
 
-## Philosophy
+> Don’t paste this into your app. Read it, adapt it, and decide what you’re actually building.
 
-1. Start from data source constraints and UX requirements.
-2. Keep domain policy in adapters.
-3. Keep orchestration and state transitions in `TreeEngine`.
-4. Keep wrappers thin and deterministic.
-5. Preserve virtualization invariants under loading and filtering.
+## 1) Getting started
 
-## Core Concepts
+1. Define a `TreeAdapter` that owns ID mapping, labels, loading, filtering semantics, and optional navigation path resolution.
+2. Feed data + adapter into `TreeExplorerComponent` (Angular wrapper).
+3. Let wrapper/service delegate state transitions to `TreeEngine` in `@tree-core`.
+4. Validate behavior with Storybook:
+   - `Tree/Cookbook/Errors & edge cases`
+   - `Tree/Page-aware virtual scroll (X-Total-Count)`
+   - `Tree/Cookbook`
 
-- `TreeEngine`: source of truth for tree state transitions.
-- `TreeNode`: normalized node state held by `TreeEngine`.
-- `TreeRowViewModel`: UI-facing row model emitted by `TreeEngine`.
-- `TreeAdapter`: domain boundary for mapping, matching, and loading.
-- `Filtering`: query-driven visibility pipeline with configurable policies.
-- `Page-Aware Virtual Scrolling`: placeholder-backed paging that preserves viewport geometry.
-- `Pinned Items`: optional root-level shortcut section backed by stable pinned entry records.
-- `Theme Contract`: CSS-variable API (`--tree-*`) for design-system styling without wrapper logic changes.
+Minimal shape:
 
-## Reading Order
+```ts
+const adapter: TreeAdapter<Node> = {
+  getId: (source) => source.id,
+  getLabel: (data) => data.name,
+  hasChildren: (data) => !!data.hasChildren,
+  loadChildren: (node) => api.loadChildren(node.id),
+};
+```
 
-1. Understand system boundaries.
-2. Follow filtering flow.
-3. Follow page-aware loading flow.
-4. Use related docs for risk/roadmap details.
+## 2) Purpose
 
-## System Overview
+- Keep domain/API logic at the adapter boundary.
+- Keep orchestration and state transitions in `TreeEngine`.
+- Keep wrappers rendering-focused and virtualization-safe.
+- Support large trees (100k+ rows) without per-row heavy allocations.
+- Preserve centralized context-menu ownership in `TreeExplorerComponent`.
+
+## 3) Feature overview
+
+### System boundaries
 
 ```mermaid
 flowchart LR
-  subgraph APP[Host Application]
+  subgraph APP[Host App]
     DS[Domain Data Source]
-    AQ[Query State]
     ADP[TreeAdapter]
+    UI[Filter and Interaction Inputs]
   end
 
-  subgraph CORE[tree-core]
-    ENG[TreeEngine]
-    CFG[TreeConfig]
-    FQ[Filter Query]
-    ROWS[TreeRowViewModel List]
+  subgraph CORE[@tree-core]
+    ENG[TreeEngine Facade]
+    IDX[Node Index]
+    FLAT[Flattening]
+    EXP[Expansion]
+    SEL[Selection]
+    PAGE[Paging]
+    LOAD[Loading and Errors]
+    VIS[Visibility and Row Projection]
+    NAV[Navigation]
   end
 
-  subgraph NG[tree-explorer Angular]
-    C[TreeExplorerComponent]
-    S[TreeStateService]
-    V[CDK Virtual Scroll]
+  subgraph NG[@tree-explorer]
+    CMP[TreeExplorerComponent]
+    SVC[TreeStateService]
+    VP[CDK Virtual Scroll]
   end
 
   DS --> ADP
-  AQ --> C
-  ADP --> S
-  CFG --> S
-  S --> ENG
-  FQ --> ENG
-  ENG --> ROWS
-  ROWS --> C
-  C --> V
+  UI --> CMP
+  ADP --> SVC
+  CMP --> SVC
+  SVC --> ENG
+  ENG --> IDX
+  ENG --> FLAT
+  ENG --> EXP
+  ENG --> SEL
+  ENG --> PAGE
+  ENG --> LOAD
+  ENG --> VIS
+  ENG --> NAV
+  ENG --> SVC
+  SVC --> CMP
+  CMP --> VP
 ```
 
-## Boundaries
-
-- Adapter owns:
-  - domain mapping and IDs
-  - backend protocol and query translation
-  - matching semantics (`matches`, `getSearchText`, `highlightRanges`)
-- Engine owns:
-  - node graph state
-  - flattening, selection, loading, error states
-  - filtering lifecycle (`setFilter`, `clearFilter`, `reapplyFilter`)
-  - placeholder-aware page orchestration
-- Wrapper owns:
-  - rendering and viewport integration
-  - presentational text highlighting (`TreeHighlightMatchPipe`)
-  - events and interaction wiring
-  - theme token consumption (no domain rules in CSS)
-
-## Theme Contract
-
-```mermaid
-flowchart LR
-  DS[Design System Tokens] --> MAP[App Theme Mapping]
-  MAP --> TREEVARS[Tree CSS Vars --tree-*]
-  TREEVARS --> NG[tree-explorer Angular]
-  TREEVARS --> LIT[lit-tree-explorer POC]
-```
-
-- Visual customization is done through CSS variables.
-- Structural behavior remains in config/engine (`TreeConfig`, `TreeEngine`).
-- Token names are shared across Angular and Lit wrappers.
-
-## Expand and Page-Aware Loading
+### TreeEngine module data flow
 
 ```mermaid
 flowchart TD
-  A[User expands node] --> B[Wrapper calls toggleExpand]
-  B --> C[TreeEngine updates expanded state]
-  C --> D{Children already loaded}
-  D -- Yes --> E[Recompute filtered rows]
-  D -- No --> F[Adapter loadChildren request]
-  F --> G[Apply paged children and placeholders]
-  G --> E
-  E --> H[Viewport renders rows]
-  H --> I[Rendered range changes]
-  I --> J[ensureRangeLoaded]
-  J --> K[Load missing pages only]
-  K --> G
+  A[Inputs: adapter callbacks, data load events, UI intents] --> B[tree-engine facade]
+  B --> C[node-index]
+  B --> D[expansion and selection]
+  B --> E[paging and loading]
+  B --> F[flattening]
+  B --> G[visibility and row projection]
+  B --> H[navigation]
+  C --> F
+  D --> F
+  E --> F
+  F --> G
+  H --> D
+  G --> I[Outputs: flat rows, selection state, loading and errors, navigation result]
 ```
 
-## Filtering Data Flow
+### Expand/load/page sequence
 
 ```mermaid
-flowchart TD
-  A[Host sets filterQuery] --> B[Wrapper forwards query]
-  B --> C[TreeStateService setFilter or clearFilter]
-  C --> D[TreeEngine normalize query]
-  D --> E[Compute visibility over flattened nodes]
-  E --> F{showParentsOfMatches}
-  F -- true --> G[Include loaded ancestors]
-  F -- false --> H[Direct matches only]
-  G --> I[Apply selection and expansion policies]
-  H --> I
-  I --> J[Build filtered row list]
-  J --> K[Viewport render and range loading]
+sequenceDiagram
+  participant U as User
+  participant C as TreeExplorerComponent
+  participant S as TreeStateService
+  participant E as TreeEngine
+  participant A as Adapter/API
+
+  U->>C: Expand parent
+  C->>S: toggleExpand(row)
+  S->>E: toggleExpand + setPagination
+  E-->>S: shouldLoadChildren/page request
+  S->>A: loadChildren(parent,page)
+  A-->>S: items + totalCount
+  S->>E: applyPagedChildren
+  E-->>S: placeholders + loaded slots updated
+  C->>S: renderedRange changed
+  S->>E: ensureRangeLoaded(start,end)
+  E-->>S: pagesToLoad
+  S->>A: loadChildren(missing pages)
 ```
 
-## Pinned Items Data Flow
+### Pinned async navigation sequence
 
 ```mermaid
-flowchart TD
-  A[User opens row context menu] --> B[Star action]
-  B --> C[TreeStateService pinNode]
-  C --> D[Update local pinned entries]
-  D --> E{PinnedStore addPinned}
-  E -- available --> F[Persist to API and reconcile entryId]
-  E -- missing --> G[Local-only pinned state]
-  F --> H[Pinned section render]
-  G --> H
-  H --> I[User clicks pinned link]
-  I --> J[expandPath + scroll + select]
+sequenceDiagram
+  participant U as User
+  participant C as TreeExplorerComponent
+  participant S as TreeStateService
+  participant A as Adapter
+  participant E as TreeEngine
+
+  U->>C: Click pinned item
+  C->>S: navigateToNode(targetId)
+  S->>A: resolvePathToNode(targetId)
+  A-->>S: path steps (with optional page hints)
+  loop Path steps
+    S->>E: expand parent
+    alt Child missing
+      S->>A: loadChildren(parent or page hint)
+      A-->>S: children / error
+    end
+  end
+  alt Success
+    S->>E: expandPath(target)
+    C->>C: select + ensure visible + focus
+  else Failure
+    S-->>C: navigation error state
+  end
 ```
 
-## Filtering Contract
+## 4) API overview
 
-- Core lifecycle:
-  - `setFilter(filterQuery)`
-  - `clearFilter()`
-  - `reapplyFilter(adapter)`
-  - `getFilteredFlatList(adapter, config)`
-  - `selectRange(fromId, toId, adapter?, config?)`
-- Filtering mode contract:
-  - `client`: core evaluates query matching over loaded rows
-  - `hybrid`: core evaluates loaded rows; wrappers may load deeper matches
-  - `server`: adapter/API owns filtering; core skips query match filtering
-- Backward compatibility:
-  - `getVisibleRows()` delegates to `getFilteredFlatList()`
-  - `adapter.isVisible` remains supported as baseline visibility gating
+### Core contracts
 
-## Performance Rules
+| Contract | Key methods/fields | Meaning |
+|---|---|---|
+| `TreeAdapter<TSource,T>` | `getId`, `getLabel`, `loadChildren`, `getPagination`, `matches`, `isLeaf`, `resolvePathToNode` | Domain boundary and async loading/matching policy owner |
+| `TreeEngine<T>` | `toggleExpand`, `applyPagedChildren`, `setFilter`, `getFilteredFlatList`, `selectRange` | State machine for transitions and row outputs |
+| `TreeConfig<T>` | `selection`, `virtualization`, `filtering`, `pinned`, `actions` | Wrapper/runtime behavior policy |
+| `TreeLoadError` | `scope`, `nodeId`, `pageIndex`, `reason` | Standardized root/children/navigation failure payload |
 
-- Stable IDs are mandatory for selection and virtualization.
-- Placeholder IDs must be deterministic per `(parentId, index)`.
-- Never run filtering logic in row components.
-- Keep range loading deduped by `(parentId, pageIndex)`.
-- Keep filter recomputation bounded to state/query changes.
+### `isLeaf` precedence
 
-## Related Docs
+1. `adapter.isLeaf(data, ctx)` when it returns boolean.
+2. `node.isLeaf` when present.
+3. Default heuristic:
+   - loaded `childrenIds` length
+   - adapter `hasChildren`
+   - load capability fallback.
 
-- Filtering review: [docs/filtering-review.md](./filtering-review.md)
-- Page-aware loading: [docs/page-aware-virtual-scroll.md](./page-aware-virtual-scroll.md)
-- Pinned items: [docs/pinned-items.md](./pinned-items.md)
-- Theming: [docs/theming.md](./theming.md)
-- Quality report: [docs/quality-report.md](./quality-report.md)
-- Roadmap: [docs/next-steps.md](./next-steps.md)
+### Async pinned navigation extension
+
+- Optional adapter hook:
+  - `resolvePathToNode(targetId) -> { targetId, steps[] }`
+- Steps may include pagination hints for paged parents.
+- Wrapper/service uses this to load missing branches deterministically.
+
+## 5) Edge cases & failure modes
+
+- Initial root load failure:
+  - wrapper emits `TreeLoadError` with `scope='root'`.
+- Page-aware load failure:
+  - page-level errors are tracked; retries target failed pages only.
+- Navigation path unavailable:
+  - emits `scope='navigation'` with reason `path-unavailable`.
+- Navigation path resolution failure:
+  - emits `scope='navigation'` with reason `path-resolution-failed`.
+- Navigation branch load failure:
+  - emits `scope='navigation'` with reason `load-failed`.
+- Missing node after loads:
+  - emits `scope='navigation'` with reason `not-found`.
+
+## 6) Recipes
+
+- If backend owns filtering:
+  - set `filtering.mode='server'` and keep `adapter.matches` optional.
+- If paged branch needs direct target navigation:
+  - return page hints from `resolvePathToNode`.
+- If you need strict leaf semantics:
+  - implement `adapter.isLeaf(data, ctx)` and keep it deterministic.
+- If you need pinned persistence:
+  - use `TreePinnedStore` hooks (`loadPinned`, `addPinned`, `removePinned`, `reorderPinned`).
+- Storybook references:
+  - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.page-aware.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts`
+
+## 7) Non-goals / pitfalls
+
+- Do not put domain/API branching inside row components.
+- Do not treat wrapper events as persistence logic; keep that in adapter/store.
+- Do not rely on unstable IDs; virtualization and selection correctness depend on stable IDs.
+- Do not bypass `TreeEngine` state transitions with direct node mutations.
+- Do not assume pinned navigation can resolve unloaded targets without `resolvePathToNode`.

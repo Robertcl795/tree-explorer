@@ -270,11 +270,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     event.preventDefault();
     event.stopPropagation();
 
-    if (item.missing) {
-      return;
-    }
-
-    this.navigateToNode(item.entry.nodeId);
+    void this.navigateToNode(item.entry.nodeId);
   }
 
   public onRowDoubleClick(event: MouseEvent, row: TreeRowViewModel<T>): void {
@@ -618,8 +614,9 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     });
   }
 
-  private navigateToNode(nodeId: string): void {
-    if (!this.treeService.expandToNode(nodeId)) {
+  private async navigateToNode(nodeId: string): Promise<void> {
+    const result = await this.treeService.navigateToNode(nodeId);
+    if (!result.success) {
       return;
     }
 

@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom, isObservable } from 'rxjs';
 import {
   DEFAULT_TREE_CONFIG,
+  TreePageHint,
   PageRequest,
   TreeAdapter,
   TreeChildrenResult,
@@ -14,6 +15,7 @@ import {
   TreePinnedEntry,
   TreePinnedStore,
   TreePinnedStoreResult,
+  TreeResolvePathResult,
   TreeRowViewModel,
   mapSourcesToNodeGraph,
 } from '@tree-core';
@@ -39,6 +41,17 @@ export interface ResolvedPinnedConfig<T> {
   resolvePinnedLabel?: TreePinnedConfig<T>['resolvePinnedLabel'];
   resolvePinnedIcon?: TreePinnedConfig<T>['resolvePinnedIcon'];
   onNavigate?: TreePinnedConfig<T>['onNavigate'];
+}
+
+export interface TreeNavigationResult {
+  nodeId: string;
+  success: boolean;
+  reason?:
+    | 'not-found'
+    | 'path-unavailable'
+    | 'path-resolution-failed'
+    | 'load-failed';
+  error?: unknown;
 }
 
 @Injectable()
@@ -294,6 +307,15 @@ export class TreeStateService<TSource, T = TSource> {
     }
 
     if (pagination?.enabled) {
+      if (
+        typeof pagination.initialTotalCount === 'number' &&
+        Number.isFinite(pagination.initialTotalCount) &&
+        pagination.initialTotalCount >= 0
+      ) {
+        this.engine.primePagedPlaceholders(row.id, pagination.initialTotalCount);
+        this.bumpVersion();
+      }
+
       const initialRequest: PageRequest = {
         pageIndex: 0,
         pageSize: pagination.pageSize,
@@ -573,6 +595,129 @@ export class TreeStateService<TSource, T = TSource> {
     return this.engine.getPagedNodeDebugState(parentId);
   }
 
+  public async navigateToNode(nodeId: string): Promise<TreeNavigationResult> {
+    const existingNode = this.engine.getNode(nodeId);
+    if (existingNode) {
+      this.engine.expandPath(nodeId);
+      this.bumpVersion();
+      return {
+        nodeId,
+        success: true,
+      };
+    }
+
+    const adapter = this.adapterRef();
+    if (!adapter?.resolvePathToNode) {
+      return this.reportNavigationFailure(
+        nodeId,
+        'path-unavailable',
+        new Error('Adapter does not provide resolvePathToNode'),
+      );
+    }
+
+    let resolvedPath: TreeResolvePathResult | null = null;
+    try {
+      const rawResult = await this.resolveUnknownResult(
+        adapter.resolvePathToNode(nodeId),
+      );
+      resolvedPath = this.normalizeResolvedPath(rawResult, nodeId);
+    } catch (error) {
+      return this.reportNavigationFailure(nodeId, 'path-resolution-failed', error);
+    }
+
+    if (!resolvedPath || resolvedPath.steps.length === 0) {
+      return this.reportNavigationFailure(
+        nodeId,
+        'not-found',
+        new Error(`Navigation path not found for node ${nodeId}`),
+      );
+    }
+
+    for (let index = 1; index < resolvedPath.steps.length; index += 1) {
+      const step = resolvedPath.steps[index];
+      const parentStep = resolvedPath.steps[index - 1];
+      const parentId = step?.parentId ?? parentStep?.nodeId ?? null;
+      const childId = step?.nodeId ?? null;
+
+      if (!parentId || !childId) {
+        continue;
+      }
+
+      const parentNode = this.engine.getNode(parentId);
+      if (!parentNode) {
+        return this.reportNavigationFailure(
+          nodeId,
+          'not-found',
+          new Error(`Parent node ${parentId} is not loaded`),
+        );
+      }
+
+      const pagination = adapter.getPagination
+        ? adapter.getPagination(parentNode, parentNode.data)
+        : undefined;
+      if (pagination?.enabled) {
+        this.engine.setPagination(parentId, pagination);
+      }
+
+      if (!this.engine.expandedIds.has(parentId)) {
+        this.engine.toggleExpand(parentId, typeof adapter.loadChildren === 'function');
+        this.reapplyActiveFilter(adapter);
+        this.bumpVersion();
+      }
+
+      if (this.engine.getNode(childId)) {
+        continue;
+      }
+
+      if (!adapter.loadChildren) {
+        return this.reportNavigationFailure(
+          nodeId,
+          'path-unavailable',
+          new Error(`Adapter cannot load children for ${parentId}`),
+        );
+      }
+
+      try {
+        if (pagination?.enabled) {
+          const request = this.resolveNavigationPageRequest(
+            pagination,
+            step.pageHint,
+          );
+          this.engine.markPageInFlight(parentId, request.pageIndex);
+          await this.loadChildrenPage(parentId, adapter, request);
+        } else {
+          await this.loadChildren(parentId, adapter);
+        }
+      } catch (error) {
+        return this.reportNavigationFailure(nodeId, 'load-failed', error);
+      }
+
+      if (!this.engine.getNode(childId)) {
+        return this.reportNavigationFailure(
+          nodeId,
+          'not-found',
+          new Error(`Node ${childId} not found after loading ${parentId}`),
+        );
+      }
+    }
+
+    if (!this.engine.getNode(nodeId)) {
+      return this.reportNavigationFailure(
+        nodeId,
+        'not-found',
+        new Error(`Node ${nodeId} could not be reached`),
+      );
+    }
+
+    this.engine.expandPath(nodeId);
+    this.bumpVersion();
+
+    return {
+      nodeId,
+      success: true,
+    };
+  }
+
   public expandToNode(nodeId: string): boolean {
     if (!this.engine.getNode(nodeId)) {
       return false;
@@ -626,6 +771,7 @@ export class TreeStateService<TSource, T = TSource> {
       this.lastError.set(loadError);
       this.configRef().onError?.(loadError);
       this.bumpVersion();
+      throw error;
     }
   }
 
@@ -683,6 +829,7 @@ export class TreeStateService<TSource, T = TSource> {
       this.lastError.set(loadError);
       this.configRef().onError?.(loadError);
       this.bumpVersion();
+      throw error;
     }
   }
 
@@ -884,6 +1031,86 @@ export class TreeStateService<TSource, T = TSource> {
     result: TreePinnedStoreResult<TResult>,
   ): Promise<TResult> {
     return this.resolveUnknownResult(result) as Promise<TResult>;
+  }
+
+  private resolveNavigationPageRequest(
+    pagination: { pageSize: number; pageIndexing?: 'zero-based' | 'one-based' },
+    hint?: TreePageHint,
+  ): PageRequest {
+    const pageSize = hint?.pageSize ?? pagination.pageSize;
+    const indexing = hint?.pageIndexing ?? pagination.pageIndexing ?? 'zero-based';
+    const rawPageIndex = Math.max(0, Math.floor(hint?.pageIndex ?? 0));
+    const pageIndex = indexing === 'one-based'
+      ? Math.max(0, rawPageIndex - 1)
+      : rawPageIndex;
+
+    return {
+      pageIndex,
+      pageSize,
+    };
+  }
+
+  private normalizeResolvedPath(
+    value: unknown,
+    targetId: string,
+  ): TreeResolvePathResult | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    const maybe = value as TreeResolvePathResult;
+    if (!Array.isArray(maybe.steps)) {
+      return null;
+    }
+
+    const steps = maybe.steps
+      .map((step) => ({
+        nodeId: `${step?.nodeId ?? ''}`.trim(),
+        parentId: step?.parentId == null ? null : `${step.parentId}`.trim(),
+        pageHint: step?.pageHint,
+      }))
+      .filter((step) => step.nodeId.length > 0);
+
+    if (steps.length === 0) {
+      return null;
+    }
+
+    if (steps[0]?.parentId !== null) {
+      steps[0] = {
+        ...steps[0]!,
+        parentId: null,
+      };
+    }
+
+    return {
+      targetId: `${maybe.targetId || targetId}`,
+      steps,
+    };
+  }
+
+  private reportNavigationFailure(
+    nodeId: string,
+    reason: NonNullable<TreeLoadError['reason']>,
+    error: unknown,
+  ): TreeNavigationResult {
+    const loadError: TreeLoadError = {
+      scope: 'navigation',
+      nodeId,
+      reason,
+      error,
+      message: this.formatError(error),
+    };
+
+    this.lastError.set(loadError);
+    this.configRef().onError?.(loadError);
+    this.bumpVersion();
+
+    return {
+      nodeId,
+      success: false,
+      reason,
+      error,
+    };
   }
 
   private formatError(error: unknown): string {

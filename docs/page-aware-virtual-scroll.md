@@ -1,108 +1,103 @@
 # Page-Aware Virtual Scroll
 
-## Problem
+> Don’t paste this into your app. Read it, adapt it, and decide what you’re actually building.
 
-Tree nodes backed by paginated APIs cannot pre-load all children, but virtual scrolling still requires accurate total height.
+## 1) Getting started
 
-## Solution
+1. Enable pagination per parent in the adapter:
+   - `getPagination(node) -> { enabled: true, pageSize }`
+2. Make `loadChildren` accept a `PageRequest`.
+3. Return `PageResult<TSource>` with `totalCount`.
+4. Use `TreeExplorerComponent` with virtual scroll enabled.
+5. Validate with Storybook:
+   - `Tree/Page-aware virtual scroll (X-Total-Count)`
+   - `Tree/Cookbook/Errors & edge cases`
 
-For each paginated parent node:
+```ts
+const adapter: TreeAdapter<Node> = {
+  getId: (s) => s.id,
+  getLabel: (d) => d.name,
+  hasChildren: (d) => !!d.hasChildren,
+  getPagination: (node) => node.id === 'catalog'
+    ? { enabled: true, pageSize: 50, pageIndexing: 'zero-based' }
+    : undefined,
+  loadChildren: (node, reqOrSource) => api.loadPage(node.id, reqOrSource as PageRequest),
+};
+```
 
-1. Load first page.
-2. Read `totalCount` (for example from `X-Total-Count`).
-3. Materialize fixed-length child slots in `TreeEngine`.
-4. Fill loaded slots with real nodes and remaining slots with placeholders.
-5. On viewport range changes, request only missing pages for visible placeholder ranges.
+## 2) Purpose
+
+- Keep virtual-scroll geometry stable while data is paged.
+- Avoid full prefetch for very large branches.
+- Request only pages that intersect rendered placeholder ranges.
+
+## 3) Feature overview
 
 ```mermaid
 flowchart TD
   A[Expand paged parent] --> B[Load first page]
   B --> C[Read totalCount]
-  C --> D[Create fixed-length child slots]
-  D --> E[Insert loaded rows + placeholders]
-  E --> F[Viewport renders range]
+  C --> D[Materialize child slots]
+  D --> E[Loaded items replace slot placeholders]
+  E --> F[Viewport range updates]
   F --> G[ensureRangeLoaded]
   G --> H[Request missing pages only]
-  H --> I[Replace placeholders in-place]
-  I --> F
+  H --> E
 ```
 
-## Core Contracts
+Behavior rules:
 
-```ts
-interface PageRequest {
-  pageIndex: number;
-  pageSize: number;
-}
+- Placeholder IDs are deterministic: `__tree_placeholder__<parentId>__<index>`.
+- In-flight dedupe is by `(parentId, pageIndex)`.
+- Page errors are tracked per page; retries can target only failed pages.
+- Page patching updates affected ranges; full-slot materialization occurs only when total-count shape changes.
 
-interface PageResult<TSource> {
-  items: TSource[];
-  totalCount: number;
-}
+## 4) API overview
 
-interface TreePaginationConfig {
-  enabled: boolean;
-  pageSize: number;
-  pageIndexing?: 'zero-based' | 'one-based';
-}
-```
+| Field / API | Type | Default | Meaning | Notes |
+|---|---|---|---|---|
+| `TreePaginationConfig.enabled` | `boolean` | required | Enables per-parent paging | Set per node in adapter |
+| `TreePaginationConfig.pageSize` | `number` | required | Page size for parent | Stable sizes are recommended |
+| `TreePaginationConfig.pageIndexing` | `'zero-based' \\| 'one-based'` | `'zero-based'` | Adapter/API index mode | Engine internal indexing stays zero-based |
+| `TreePaginationConfig.initialTotalCount` | `number` | `undefined` | Optional slot priming count before first page success | Useful for initial-page failure placeholders |
+| `PageRequest` | `{ pageIndex, pageSize }` | n/a | Requested page | Wrapper converts to adapter indexing when needed |
+| `PageResult<T>` | `{ items, totalCount }` | n/a | Page payload and branch size | `totalCount` drives placeholder slot count |
 
-Adapter hooks:
+Key engine/service calls:
 
-```ts
-getPagination?: (node, data?) => TreePaginationConfig | undefined;
-loadChildren?: (node, reqOrSource?, data?) => TreeChildrenResult | TreePagedChildrenResult;
-```
+- `TreeEngine.ensureRangeLoaded(parentId, {start,end})`
+- `TreeEngine.applyPagedChildren(parentId, request, children, totalCount)`
+- `TreeStateService.ensureRangeLoaded(start,end)`
 
-## Behavioral Guarantees
+## 5) Edge cases & failure modes
 
-- No full prefetch: only requested pages are fetched.
-- No forced intermediate loading: quick scroll can load late pages directly.
-- In-flight dedupe: duplicate page requests for the same parent are prevented.
-- Stable `trackBy`: placeholder IDs are deterministic (`parentId + index`).
-- Placeholder safety: placeholders are disabled, non-selectable, and non-actionable.
-
-## Error Handling
-
-When page load fails:
-
-- Placeholder rows remain in place.
-- Failed page is tracked in page-error state.
-- Subsequent range checks can retry failed pages.
-
-## Sorting and Ordering
-
-The feature assumes deterministic backend ordering per parent.
-
-- No client-side re-sort is applied by default.
-- If sorting is required, apply it at source/backend level.
-
-## Edge Cases
-
-- `totalCount` unknown before first response:
-  - Parent initially has unknown children length.
-  - Fixed length is created after first page result.
-- One-based API indexing:
-  - Internal engine page indices remain zero-based.
-  - Requests are translated to one-based if adapter config declares `pageIndexing: 'one-based'`.
+- Initial page fails:
+  - parent remains stable; error state emitted; retry is explicit.
+- Later page fails:
+  - failed page placeholders remain; only that page retries.
+- Unknown `totalCount` before first success:
+  - slot geometry is finalized after first successful page payload.
+- One-based backend:
+  - wrapper converts request page index before adapter call.
 - Sparse final page:
-  - Last page can contain fewer rows than `pageSize`; placeholders remain only where data is still unknown.
+  - final slot range is partial; no fake data rows are created.
 
-## Angular Integration
+## 6) Recipes
 
-- `TreeExplorerComponent` subscribes to `renderedRangeStream`.
-- Range events call `TreeStateService.ensureRangeLoaded(start,end)`.
-- Service maps visible placeholder ranges to per-parent child-index windows.
-- Service requests exactly the pages returned by `TreeEngine.ensureRangeLoaded`.
+- If your API returns count in headers:
+  - map header to `PageResult.totalCount`.
+- If you need deterministic retries:
+  - keep error pages in debug UI and trigger range reload or targeted retry.
+- If your backend uses one-based pages:
+  - set `pageIndexing: 'one-based'`.
+- Storybook references:
+  - `packages/tree-explorer/src/stories/tree-explorer.page-aware.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.page-aware-nested.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
 
-## Validation Story
+## 7) Non-goals / pitfalls
 
-Storybook includes:
-
-- `Tree/Page-aware virtual scroll (X-Total-Count)`
-- deterministic mock API
-- real-time debug panel:
-  - requested pages
-  - in-flight pages
-  - cached pages / cache size
-  - total count extracted from `X-Total-Count`
+- Do not fetch all pages on expand.
+- Do not generate random placeholder IDs.
+- Do not run filtering in row components to hide paging artifacts.
+- Do not rebuild full child arrays for every page patch when branch shape is unchanged.

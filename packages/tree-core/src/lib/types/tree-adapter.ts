@@ -1,13 +1,35 @@
 import type { Observable } from 'rxjs';
 
 import { TreeId, TreeNode } from './tree-node';
-import { PageRequest, PageResult, TreePaginationConfig } from './tree-pagination';
+import {
+  PageRequest,
+  PageResult,
+  TreePageHint,
+  TreePaginationConfig,
+} from './tree-pagination';
 import { TreeFilterQuery, TreeMatchRange } from './tree-filter';
 
 /** Context passed to adapter transforms during mapping. */
 export interface TreeTransformContext {
   parentId: TreeId | null;
   level: number;
+}
+
+export interface TreeLeafContext<T> {
+  node?: TreeNode<T>;
+  parentId: TreeId | null;
+  level: number;
+}
+
+export interface TreeResolvePathStep {
+  nodeId: TreeId;
+  parentId: TreeId | null;
+  pageHint?: TreePageHint;
+}
+
+export interface TreeResolvePathResult {
+  targetId: TreeId;
+  steps: TreeResolvePathStep[];
 }
 
 /** Standard result shape for async or sync child loading. */
@@ -21,6 +43,13 @@ export type TreePagedChildrenResult<TSource> =
   | PageResult<TSource>
   | Promise<PageResult<TSource>>
   | Observable<PageResult<TSource>>;
+
+export type TreeResolvePathResponse =
+  | TreeResolvePathResult
+  | null
+  | undefined
+  | Promise<TreeResolvePathResult | null | undefined>
+  | Observable<TreeResolvePathResult | null | undefined>;
 
 /** Adapter contract for mapping domain sources to tree nodes. */
 export interface TreeAdapter<TSource, T = TSource> {
@@ -54,9 +83,20 @@ export interface TreeAdapter<TSource, T = TSource> {
    * Optional highlight mapping for matched label ranges.
    */
   highlightRanges?: (label: string, query: TreeFilterQuery) => TreeMatchRange[];
-  isLeaf?: (data: T) => boolean | undefined;
+  /**
+   * Optional leaf override. Engine precedence:
+   * 1) adapter.isLeaf(data, ctx)
+   * 2) node.isLeaf
+   * 3) default heuristic
+   */
+  isLeaf?: (data: T, ctx?: TreeLeafContext<T>) => boolean | undefined;
   hasChildren?: (data: T) => boolean | undefined;
   getChildren?: (data: T) => TSource[] | null | undefined;
+  /**
+   * Optional path resolver used for pinned async navigation to unloaded targets.
+   * Returns a root->target step list with optional page hints for paged parents.
+   */
+  resolvePathToNode?: (targetId: TreeId) => TreeResolvePathResponse;
   /**
    * Optional per-parent pagination contract for children loading.
    * When enabled, wrappers request pages via loadChildren with PageRequest.

@@ -34,6 +34,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Angular wrapper (`@tree-explorer`) with CDK virtual scroll.
 - Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
 - Storybook coverage for advanced, filtering, and page-aware scenarios.
+- Storybook edge-case coverage for initial load failures, page-aware retries, and pinned async navigation failures.
 - Pinned cookbook story (star/unstar, navigate-to-original, reorder, mocked GET/POST/DELETE).
 - Angular highlight pipe for matched labels (`TreeHighlightMatchPipe`), driven by current `filterQuery`.
 - First-class theme contract via CSS variables (`--tree-*`) for design-system alignment.
@@ -115,6 +116,7 @@ Start here if you are new:
 ### Architecture and Design
 
 - [Architecture](./docs/architecture.md)
+- [TreeEngine Audit](./docs/tree-engine-audit.md)
 - [Filtering Review](./docs/filtering-review.md)
 - [Page-Aware Virtual Scroll](./docs/page-aware-virtual-scroll.md)
 - [Pinned Items](./docs/pinned-items.md)

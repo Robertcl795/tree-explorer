@@ -103,7 +103,7 @@ describe('TreeExplorerComponent', () => {
     expect(component.pinnedItems().some((item) => item.entry.nodeId === 'root')).toBeTrue();
   });
 
-  it('navigates to pinned node and selects it', () => {
+  it('navigates to pinned node and selects it', async () => {
     fixture.componentRef.setInput('config', {
       ...config,
       pinned: { enabled: true, ids: ['child'] },
@@ -114,9 +114,96 @@ describe('TreeExplorerComponent', () => {
     expect(pinnedItem).toBeDefined();
 
     component.onPinnedClick(new MouseEvent('click'), pinnedItem);
+    await Promise.resolve();
 
     const selectedIds = Array.from((component as any).treeService.selectedIds());
     expect(selectedIds).toEqual(['child']);
     expect((component as any).treeService.expandedIds().has('root')).toBeTrue();
+  });
+
+  it('resolves missing pinned target through async adapter path loading', async () => {
+    const lazyAdapter: TreeAdapter<any, any> = {
+      getId: (source) => source.id,
+      getLabel: (dataItem) => dataItem.name,
+      hasChildren: (dataItem) => !!dataItem.hasChildren,
+      resolvePathToNode: () => ({
+        targetId: 'child',
+        steps: [
+          { nodeId: 'root', parentId: null },
+          { nodeId: 'child', parentId: 'root' },
+        ],
+      }),
+      loadChildren: async (node) => {
+        if (node.id === 'root') {
+          return [{ id: 'child', name: 'Child', hasChildren: false }];
+        }
+        return [];
+      },
+    };
+
+    fixture.componentRef.setInput('adapter', lazyAdapter);
+    fixture.componentRef.setInput('config', {
+      ...config,
+      pinned: {
+        enabled: true,
+        entries: [{ entryId: 'pin-child', nodeId: 'child', order: 0 }],
+      },
+    });
+    fixture.componentRef.setInput('data', [
+      { id: 'root', name: 'Root', hasChildren: true },
+    ]);
+    fixture.detectChanges();
+
+    const pinnedItem = component.pinnedItems()[0];
+    expect(pinnedItem?.missing).toBeTrue();
+
+    component.onPinnedClick(new MouseEvent('click'), pinnedItem);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+
+    expect(component.visibleRows().some((row) => row.id === 'child')).toBeTrue();
+    const selectedIds = Array.from((component as any).treeService.selectedIds());
+    expect(selectedIds).toEqual(['child']);
+  });
+
+  it('emits loadError when pinned navigation path load fails', async () => {
+    const emitSpy = spyOn(component.loadError, 'emit');
+    const lazyAdapter: TreeAdapter<any, any> = {
+      getId: (source) => source.id,
+      getLabel: (dataItem) => dataItem.name,
+      hasChildren: (dataItem) => !!dataItem.hasChildren,
+      resolvePathToNode: () => ({
+        targetId: 'child',
+        steps: [
+          { nodeId: 'root', parentId: null },
+          { nodeId: 'child', parentId: 'root' },
+        ],
+      }),
+      loadChildren: async () => {
+        throw new Error('boom');
+      },
+    };
+
+    fixture.componentRef.setInput('adapter', lazyAdapter);
+    fixture.componentRef.setInput('config', {
+      ...config,
+      pinned: {
+        enabled: true,
+        entries: [{ entryId: 'pin-child', nodeId: 'child', order: 0 }],
+      },
+    });
+    fixture.componentRef.setInput('data', [
+      { id: 'root', name: 'Root', hasChildren: true },
+    ]);
+    fixture.detectChanges();
+
+    const pinnedItem = component.pinnedItems()[0];
+    component.onPinnedClick(new MouseEvent('click'), pinnedItem);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+
+    expect(emitSpy).toHaveBeenCalled();
+    const selectedIds = Array.from((component as any).treeService.selectedIds());
+    expect(selectedIds).toEqual([]);
   });
 });

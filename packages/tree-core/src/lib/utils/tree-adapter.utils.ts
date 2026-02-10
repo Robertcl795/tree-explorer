@@ -14,7 +14,9 @@ export function createTreeNode<TSource, T>(
     return adapter.transform(source, ctx, data);
   }
   const id = adapter.getId(source);
-  const isLeaf = adapter.isLeaf ? adapter.isLeaf(data) : undefined;
+  const isLeaf = adapter.isLeaf
+    ? adapter.isLeaf(data, { parentId: ctx.parentId, level: ctx.level })
+    : undefined;
   const hasChildren = adapter.hasChildren ? adapter.hasChildren(data) : undefined;
   const children = adapter.getChildren ? adapter.getChildren(data) : undefined;
   const disabled = adapter.isDisabled ? adapter.isDisabled(data) : false;

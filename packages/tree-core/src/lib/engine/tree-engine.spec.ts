@@ -158,6 +158,26 @@ describe('TreeEngine', () => {
     expect(placeholderRows.every((row) => row.disabled)).toBe(true);
   });
 
+  it('primes placeholders from an initial total count before first page response', () => {
+    engine.init([
+      node('parent', 'Parent', { isLeaf: false, childrenIds: undefined }),
+    ]);
+    engine.setPagination('parent', { enabled: true, pageSize: 2 });
+
+    engine.primePagedPlaceholders('parent', 5);
+    engine.toggleExpand('parent', false);
+
+    const rows = engine.getVisibleRows(adapter, DEFAULT_TREE_CONFIG);
+    expect(rows.map((row) => row.id)).toEqual([
+      'parent',
+      '__tree_placeholder__parent__0',
+      '__tree_placeholder__parent__1',
+      '__tree_placeholder__parent__2',
+      '__tree_placeholder__parent__3',
+      '__tree_placeholder__parent__4',
+    ]);
+  });
+
   it('ensures missing pages only for the requested range', () => {
     engine.init([
       node('parent', 'Parent', { isLeaf: false, childrenIds: undefined }),
@@ -350,5 +370,19 @@ describe('TreeEngine', () => {
 
     const rows = engine.getFilteredFlatList(guardedAdapter, DEFAULT_TREE_CONFIG);
     expect(rows.map((row) => row.id)).toEqual([]);
+  });
+
+  it('uses adapter isLeaf override before node flag', () => {
+    const overrideAdapter: TreeAdapter<Item> = {
+      ...adapter,
+      isLeaf: () => false,
+    };
+
+    engine.init([
+      node('document', 'Document', { isLeaf: true, childrenIds: [] }),
+    ]);
+
+    const rows = engine.getFilteredFlatList(overrideAdapter, DEFAULT_TREE_CONFIG);
+    expect(rows[0]?.isLeaf).toBe(false);
   });
 });

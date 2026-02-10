@@ -11,6 +11,7 @@ import { TreeStateService } from './tree.service';
 type Item = {
   id: string;
   name: string;
+  hasChildren?: boolean;
   children?: Item[];
 };
 
@@ -148,5 +149,63 @@ describe('TreeStateService (Pinned)', () => {
       'entry-b',
       'entry-a',
     ]);
+  });
+
+  it('navigates to unloaded target using adapter-resolved path', async () => {
+    const lazyAdapter: TreeAdapter<Item, Item> = {
+      getId: (source) => source.id,
+      getLabel: (data) => data.name,
+      hasChildren: (data) => Array.isArray(data.children) && data.children.length > 0,
+      loadChildren: async (node) => node.data.children ?? [],
+      resolvePathToNode: () => ({
+        targetId: 'child',
+        steps: [
+          { nodeId: 'root', parentId: null },
+          { nodeId: 'child', parentId: 'root' },
+        ],
+      }),
+    };
+
+    service.setAdapter(lazyAdapter);
+    service.setSources([
+      {
+        id: 'root',
+        name: 'Root',
+        children: [{ id: 'child', name: 'Child' }],
+      },
+    ]);
+
+    const result = await service.navigateToNode('child');
+
+    expect(result.success).toBeTrue();
+    expect(service.getNode('child')).toBeDefined();
+    expect(service.expandedIds().has('root')).toBeTrue();
+  });
+
+  it('reports navigation failure when path loading fails', async () => {
+    const lazyAdapter: TreeAdapter<Item, Item> = {
+      getId: (source) => source.id,
+      getLabel: (data) => data.name,
+      hasChildren: () => true,
+      loadChildren: async () => {
+        throw new Error('boom');
+      },
+      resolvePathToNode: () => ({
+        targetId: 'ghost',
+        steps: [
+          { nodeId: 'root', parentId: null },
+          { nodeId: 'ghost', parentId: 'root' },
+        ],
+      }),
+    };
+
+    service.setAdapter(lazyAdapter);
+    service.setSources([{ id: 'root', name: 'Root' }]);
+
+    const result = await service.navigateToNode('ghost');
+
+    expect(result.success).toBeFalse();
+    expect(result.reason).toBe('load-failed');
+    expect(service.loadError()?.scope).toBe('navigation');
   });
 });

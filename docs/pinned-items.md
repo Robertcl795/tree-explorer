@@ -1,134 +1,141 @@
 # Pinned Items
 
-Date: 2026-02-10
-Status: implemented (default: disabled)
+> Don’t paste this into your app. Read it, adapt it, and decide what you’re actually building.
 
-Pinned Items adds root-level shortcuts to important nodes without duplicating nodes in `TreeEngine`.
+## 1) Getting started
 
-## Purpose
+1. Enable pinned config in `TreeConfig`.
+2. Provide static `entries` or `ids`, or wire `TreePinnedStore`.
+3. Keep context-menu actions centralized in `TreeExplorerComponent`.
+4. If targets may be unloaded, implement `adapter.resolvePathToNode`.
+5. Validate with Storybook:
+   - `Tree/Cookbook`
+   - `Tree/Cookbook/Errors & edge cases`
 
-- Let users Star/Unstar items from the centralized context menu.
-- Keep pinned shortcuts visible at the top of the explorer.
-- Navigate from a pinned shortcut to the node's real location in the tree.
-- Keep backend persistence adapter-driven through optional store hooks.
+```ts
+const config: Partial<TreeConfig<Node>> = {
+  pinned: {
+    enabled: true,
+    entries: [{ entryId: 'pin-1', nodeId: 'target-node', order: 0 }],
+  },
+};
+```
 
-## Architecture
+## 2) Purpose
+
+- Provide root-level shortcuts without duplicating tree nodes.
+- Support Star/Unstar + persistence hooks.
+- Support async navigation to unloaded targets when adapter can resolve path steps.
+
+## 3) Feature overview
 
 ```mermaid
 flowchart LR
-  A[TreeExplorerComponent]
-  B[Pinned section at root]
-  C[TreeStateService]
-  D[TreeEngine]
-  E[TreeAdapter]
-  F[PinnedStore optional]
-
-  A --> B
-  B --> C
-  C --> D
-  D --> A
-  C --> E
-  C --> F
+  A[TreeExplorerComponent] --> B[Pinned section]
+  B --> C[TreeStateService]
+  C --> D[TreeEngine]
+  C --> E[TreeAdapter]
+  C --> F[PinnedStore optional]
 ```
 
-## Contracts
+Pinned behavior rules:
 
-### `TreePinnedEntry`
+- Pinned items point to original node IDs.
+- Missing nodes are rendered as pinned entries and can still be navigated when path resolution is available.
+- Navigation success path:
+  - resolve path
+  - load missing branches/pages
+  - expand/select/focus target.
+- Navigation failure path:
+  - emits navigation-scoped load error
+  - no infinite loading loops
+  - tree remains stable.
 
-```ts
-interface TreePinnedEntry {
-  entryId: string;
-  nodeId: TreeId;
-  label?: string;
-  icon?: string;
-  order: number;
-  meta?: unknown;
-}
+Pinned sequence:
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant C as TreeExplorerComponent
+  participant S as TreeStateService
+  participant P as PinnedStore
+  participant A as Adapter
+
+  U->>C: Context menu Star
+  C->>S: pinNode(nodeId)
+  S->>P: addPinned(node)
+  P-->>S: persisted entry
+  S-->>C: pinned list updated
+  U->>C: Click pinned item
+  C->>S: navigateToNode(nodeId)
+  S->>A: resolvePathToNode(nodeId)
+  A-->>S: path steps
+  alt Navigation success
+    S->>A: load missing branches
+    S-->>C: ensureVisible + selected/focused
+  else Navigation failure
+    S-->>C: scope=navigation error
+  end
 ```
 
-- `entryId` is the pinned record id (often backend-generated).
-- `nodeId` points to the real `TreeNode` in the tree graph.
+## 4) API overview
 
-### `TreePinnedStore<T>`
+### Config
 
-```ts
-interface TreePinnedStore<T> {
-  loadPinned?: () => Promise<TreePinnedEntry[]> | Observable<TreePinnedEntry[]>;
-  addPinned?: (node: TreeNode<T>) => Promise<TreePinnedEntry> | Observable<TreePinnedEntry>;
-  removePinned?: (entry: TreePinnedEntry, node?: TreeNode<T>) => Promise<void> | Observable<void>;
-  reorderPinned?: (entries: TreePinnedEntry[]) => Promise<void> | Observable<void>;
-}
-```
+| Field | Type | Default | Meaning | Notes |
+|---|---|---|---|---|
+| `enabled` | `boolean` | inferred by legacy ids/entries | Enables pinned section | Explicit is preferred |
+| `label` | `string` | `'Pinned'` | Section heading | |
+| `ids` | `TreeId[]` | `[]` | Legacy shorthand | Kept for compatibility |
+| `entries` | `TreePinnedEntry[]` | `[]` | Explicit pinned records | Preferred |
+| `store` | `TreePinnedStore<T>` | `undefined` | Persistence hooks | Optional |
+| `maxItems` | `number` | `undefined` | Pinned cap | Guardrail |
+| `canPin` / `canUnpin` | predicates | `undefined` | Action policy gates | Domain policy hook |
+| `resolvePinnedLabel/Icon` | resolvers | `undefined` | Display override | Useful for stale labels |
+| `onNavigate` | `(nodeId) => void` | `undefined` | Post-navigation callback | Called on successful navigation |
+| `contextActions` | `TreeContextAction<T>[]` | `[]` | Pinned-specific context actions | Still wrapper-owned |
+| `dnd.enabled` | `boolean` | `false` | Reorder interaction | Uses `store.reorderPinned` when available |
 
-Store hooks are optional and keep API integration outside core.
+### Adapter extension for unloaded navigation
 
-### `TreeConfig.pinned`
+| Field | Type | Meaning |
+|---|---|---|
+| `resolvePathToNode` | `(targetId) => TreeResolvePathResponse` | Returns root->target step list with optional page hints |
 
-```ts
-interface TreePinnedConfig<T> {
-  enabled?: boolean;
-  label?: string;
-  ids?: TreeId[];
-  entries?: TreePinnedEntry[];
-  store?: TreePinnedStore<T>;
-  maxItems?: number;
-  expandable?: boolean;
-  canPin?: (ctx) => boolean;
-  canUnpin?: (ctx) => boolean;
-  resolvePinnedLabel?: (entry, ctx) => string;
-  resolvePinnedIcon?: (entry, ctx) => string | undefined;
-  onNavigate?: (nodeId: TreeId) => void;
-  contextActions?: TreeContextAction<T>[];
-  dnd?: { enabled?: boolean };
-}
-```
+### Migration notes
 
-Behavior notes:
+- Existing pinned config continues to work unchanged.
+- Existing adapters continue to work unchanged.
+- To enable unloaded-target pinned navigation, add `resolvePathToNode`.
 
-- `enabled` defaults to `false` for empty config, but is inferred as `true` for legacy static config with `ids` or `entries`.
-- `ids` is legacy shorthand and remains supported.
-- `entries` is preferred when records come from API.
-- `expandable` is reserved for future behavior; current implementation is shortcut-only.
+## 5) Edge cases & failure modes
 
-## Interaction Behavior
+- Target node removed from dataset:
+  - entry can remain visible; navigation may resolve to `not-found`.
+- Path resolver unavailable:
+  - emits `scope='navigation'`, reason `path-unavailable`.
+- Path resolver throws:
+  - emits `scope='navigation'`, reason `path-resolution-failed`.
+- Branch load fails:
+  - emits `scope='navigation'`, reason `load-failed`.
+- Permission/eligibility constraints:
+  - enforce with `canPin` and `canUnpin`.
 
-1. Node context menu shows `Star` when pinning is allowed.
-2. Pinned entry context menu shows `Unstar` and optional pinned-specific actions.
-3. Clicking a pinned shortcut:
-   - expands loaded ancestors (`expandPath`)
-   - scrolls node into view
-   - selects and focuses the node when selection mode allows it
-   - triggers optional `onNavigate(nodeId)` hook
-4. Drag and drop in the pinned section reorders entries and calls `store.reorderPinned` when available.
+## 6) Recipes
 
-## API Integration Pattern
+- API-backed pinned persistence:
+  - implement `loadPinned`, `addPinned`, `removePinned`, `reorderPinned`.
+- Async path-aware navigation for deep nodes:
+  - return path steps from `resolvePathToNode`, including page hints where needed.
+- Static shortcuts only:
+  - use `entries` without store.
+- Storybook references:
+  - `packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts`
+  - `packages/tree-explorer/src/stories/tree-explorer.errors-edge-cases.stories.ts`
 
-- Startup: `loadPinned` (GET)
-- Star action: `addPinned` (POST)
-- Unstar action: `removePinned` (DELETE)
-- Reorder: `reorderPinned` (POST/PATCH)
+## 7) Non-goals / pitfalls
 
-The library never imports HTTP clients in core. Consumers provide transport through `TreePinnedStore`.
-
-## Edge Cases
-
-- Missing node (`nodeId` no longer present): pinned item remains visible using cached label/icon and appears disabled.
-- Renamed node: pinned label can be resolved from latest row data via `resolvePinnedLabel`.
-- Permission changes: gate with `canPin` / `canUnpin` and adapter-level visibility/disabled logic.
-- Lazy or paged branches: navigation works for loaded ancestry. Deep path loading beyond loaded graph remains adapter/wrapper strategy.
-
-## Performance Notes
-
-- Pinned section is rendered outside the virtual viewport and expected to stay small.
-- `TreeEngine` flattened list is not duplicated for pinned shortcuts.
-- Track keys are stable (`entryId`) and DnD reorder is O(k) for `k = pinned entries`.
-
-## Storybook Reference
-
-- [Cookbook story: pinned items](../packages/tree-explorer/src/stories/tree-explorer.pinned-cookbook.stories.ts)
-
-## Migration Notes
-
-- Existing config like `pinned: { ids: ['node-a'] }` keeps working.
-- New apps should prefer `pinned.enabled` + `pinned.entries`/`pinned.store`.
-- If you need to disable legacy static pins temporarily, set `pinned.enabled = false`.
+- Do not duplicate pinned rows into `TreeEngine` node graph.
+- Do not place pin/unpin orchestration inside row components.
+- Do not hardcode backend calls in core libraries; keep in adapter/store.
+- Do not assume missing pinned targets are errors by default; they are valid states.
