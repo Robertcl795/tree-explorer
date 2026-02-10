@@ -10,6 +10,19 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Query-based filtering with backward compatibility for `isVisible`.
 - Page-aware lazy loading with placeholders and range-driven page fetch.
 
+## Tree Explorer Identity
+
+- `TreeEngine`:
+  the state machine for expansion, selection, filtering, and loading.
+- `TreeNode`:
+  canonical node state used by the engine (not your raw API shape).
+- `TreeAdapter`:
+  the domain boundary that maps API/domain data to tree behavior.
+- `Filtering`:
+  query-driven visibility policy managed by `TreeEngine`, with adapter-owned match semantics.
+- `Page-Aware Virtual Scrolling`:
+  fixed-height row orchestration with placeholders so huge, paged trees remain smooth and accurate.
+
 ## Feature Snapshot
 
 - Tree state engine (`TreeEngine`) with expand/select/load/error orchestration.
@@ -20,6 +33,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Angular wrapper (`@tree-explorer`) with CDK virtual scroll.
 - Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
 - Storybook coverage for advanced, filtering, and page-aware scenarios.
+- Angular highlight pipe for matched labels (`TreeHighlightMatchPipe`), driven by current `filterQuery`.
 
 ## Platform Baseline
 
@@ -86,6 +100,12 @@ export class DemoComponent {
 ```
 
 ## Documentation Hub
+
+Start here if you are new:
+
+1. [Architecture](./docs/architecture.md)
+2. [Next Steps](./docs/next-steps.md)
+3. [Filtering Review](./docs/filtering-review.md)
 
 ### Architecture and Design
 

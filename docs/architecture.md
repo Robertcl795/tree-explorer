@@ -8,6 +8,22 @@
 4. Keep wrappers thin and deterministic.
 5. Preserve virtualization invariants under loading and filtering.
 
+## Core Concepts
+
+- `TreeEngine`: source of truth for tree state transitions.
+- `TreeNode`: normalized node state held by `TreeEngine`.
+- `TreeRowViewModel`: UI-facing row model emitted by `TreeEngine`.
+- `TreeAdapter`: domain boundary for mapping, matching, and loading.
+- `Filtering`: query-driven visibility pipeline with configurable policies.
+- `Page-Aware Virtual Scrolling`: placeholder-backed paging that preserves viewport geometry.
+
+## Reading Order
+
+1. Understand system boundaries.
+2. Follow filtering flow.
+3. Follow page-aware loading flow.
+4. Use related docs for risk/roadmap details.
+
 ## System Overview
 
 ```mermaid
@@ -55,6 +71,7 @@ flowchart LR
   - placeholder-aware page orchestration
 - Wrapper owns:
   - rendering and viewport integration
+  - presentational text highlighting (`TreeHighlightMatchPipe`)
   - events and interaction wiring
 
 ## Expand and Page-Aware Loading

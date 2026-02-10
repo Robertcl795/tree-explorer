@@ -7,12 +7,16 @@ Scope: `@tree-core`, `@tree-explorer`, `@lit-tree-explorer`
 
 Filtering is now a first-class core contract and no longer wrapper-only behavior.
 
+Concepts used in this review follow shared naming:
+`TreeEngine`, `TreeNode`, `TreeRowViewModel`, `TreeAdapter`, `Filtering`, and `Page-Aware Virtual Scrolling`.
+
 Implemented:
 
 - `TreeEngine.setFilter(filterQuery)`
 - `TreeEngine.clearFilter()`
 - `TreeEngine.reapplyFilter(adapter)`
 - `TreeEngine.getFilteredFlatList(adapter, config)`
+- `TreeHighlightMatchPipe` in Angular wrapper for real-time label highlighting
 - Adapter extension points:
   - `matches(data, query)`
   - `getSearchText(data)`
@@ -84,7 +88,7 @@ Backward compatibility preserved:
 | --- | --- | --- |
 | Simple text search | 4/5 | Core contract implemented; wrapper input available |
 | Multi-criteria filters | 3/5 | Query shape exists; richer field semantics still adapter-defined |
-| Server-side filtering | 4/5 | Explicit mode contract exists; cookbook examples still needed |
+| Server-side filtering | 4/5 | Explicit mode contract and cookbook stories exist |
 | Fuzzy search | 2/5 | Needs ranking/scoring contract and ordering policy |
 | Highlight matches | 4/5 | Built-in metadata channel available |
 | Auto-expand to matches | 4/5 | Config policy implemented |
@@ -113,15 +117,15 @@ Backward compatibility preserved:
 
 ### P0
 
-1. Document server-side and hybrid cookbook patterns in Storybook/docs.
-2. Add integration tests for policy combinations with pagination placeholders.
-3. Add wrapper-level debounce/cancel guidance and defaults.
+1. Add integration tests for filtering + pagination policy combinations.
+2. Add wrapper-level debounce/cancel guidance and defaults.
+3. Add cookbook docs for backend pagination + query caching contracts.
 
 ### P1
 
 1. Add incremental filtering controls (debounce/cancel) at wrapper/service level.
 2. Add optional filter indexes for high-frequency query updates.
-3. Add explicit server-side mode examples in Storybook.
+3. Add explicit metrics hooks for filter recompute timing.
 
 ### P2
 

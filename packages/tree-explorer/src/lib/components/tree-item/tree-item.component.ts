@@ -12,9 +12,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   SELECTION_MODES,
+  TreeFilterInput,
   TreeDisplayConfig,
   TreeRowViewModel,
 } from '@tree-core';
+import { TreeHighlightMatchPipe } from '../../pipes';
 
 @Component({
   selector: 'td-tree-item',
@@ -25,6 +27,7 @@ import {
     MatButtonModule,
     MatCheckboxModule,
     MatProgressSpinnerModule,
+    TreeHighlightMatchPipe,
   ],
   templateUrl: './tree-item.component.html',
   styleUrls: ['./tree-item.component.scss'],
@@ -40,6 +43,7 @@ export class TreeItemComponent<T = any> {
   public readonly selectionMode = input<SELECTION_MODES | undefined>();
   public readonly showContextButton = input(false);
   public readonly dragDropEnabled = input(false);
+  public readonly filterQuery = input<TreeFilterInput>(null);
 
   public readonly rowClick = output<MouseEvent>();
   public readonly rowDoubleClick = output<MouseEvent>();

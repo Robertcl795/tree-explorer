@@ -49,4 +49,12 @@ describe('TreeItemComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('highlights matching label text when filterQuery is provided', () => {
+    fixture.componentRef.setInput('filterQuery', 'root');
+    fixture.detectChanges();
+
+    const label = fixture.nativeElement.querySelector('.tree-item-label');
+    expect(label?.innerHTML).toContain('<mark>Root</mark>');
+  });
+
 });

@@ -7,48 +7,28 @@ Scope: repository-wide docs and implementation quality status
 
 - Angular baseline standardized to `19.2.x` across workspace manifests.
 - Query filtering contract implemented in core and wired in Angular/Lit wrappers.
+- Highlighted label rendering implemented in Angular via `TreeHighlightMatchPipe`.
 - Storybook includes filtering scenarios and page-aware virtual-scroll validation.
 - Documentation now reflects current behavior rather than pre-refactor assumptions.
 
-## Deprecated Content Removed
+## Component Identity (Standard Terms)
 
-The previous quality report described known pre-refactor defects that are now resolved or no longer accurate.
+- `TreeEngine`: state machine for tree behavior.
+- `TreeNode`: canonical engine node representation.
+- `TreeAdapter`: domain and API boundary layer.
+- `Filtering`: query-driven visibility and policy orchestration.
+- `Page-Aware Virtual Scrolling`: placeholder-backed pagination for stable viewport geometry.
 
-Deprecated findings removed from active report:
+## Stable Capabilities
 
-- no filter contract in core
-- wrapper-only filtering behavior
-- missing filtering stories
-- docs claiming architecture gaps already closed
+- Core filtering lifecycle is implemented in `TreeEngine`.
+- Filtering modes are explicit: `client`, `hybrid`, `server`.
+- Filter-aware range selection is implemented when adapter/config context is available.
+- Angular wrapper supports `filterQuery` and row-level highlight rendering through `TreeHighlightMatchPipe`.
+- Cookbook stories cover client/hybrid/server filtering and include interactive search + play tests.
+- Docs hub, architecture docs, and markdown/mermaid sanity checks are in place.
 
-## Quality Checklist
-
-### Core behavior checklist
-
-- [x] `TreeEngine` exposes filtering lifecycle methods.
-- [x] Adapter extension points support domain-owned matching.
-- [x] Backward compatibility for `adapter.isVisible` is preserved.
-- [x] Placeholder semantics remain virtualization-safe under filtering.
-- [x] `selectRange` supports filtered row order when adapter/config context is provided.
-- [x] Filtering mode contract is explicit (`client` | `hybrid` | `server`).
-
-### Wrapper integration checklist
-
-- [x] Angular wrapper accepts `filterQuery` input.
-- [x] Angular service re-applies filter on relevant state changes.
-- [x] Lit POC has `filterQuery` parity.
-- [x] Wrapper spec typing is compatible with signal input APIs.
-
-### Documentation checklist
-
-- [x] Root `README.md` functions as documentation hub.
-- [x] Architecture diagrams are flowchart-based and GitHub-safe.
-- [x] Filtering review reflects current contract and risks.
-- [x] Next-steps roadmap includes filtering and platform strategy.
-- [x] Filtering cookbook stories include client, hybrid, and server examples.
-- [x] Docs sanity check script (`pnpm docs:check`) is in place.
-
-## Remaining Risks
+## Open Quality Gaps
 
 1. Filtering is still full-scan O(n) per recompute on large loaded trees.
 2. Hybrid mode deeper-match loading remains wrapper strategy, not core scheduler policy.
@@ -77,6 +57,7 @@ pnpm test
 
 1. Add integration tests for server/hybrid cookbook scenarios.
 2. Add performance guardrails for high-frequency filter updates.
+3. Add baseline accessibility checks for highlight rendering and keyboard filtering flows.
 
 ### P1
 

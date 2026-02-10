@@ -20,6 +20,9 @@ export * from './lib/tokens/index';
 // =================== UTILITIES ===================
 export * from './lib/utils/index';
 
+// =================== PIPES ===================
+export * from './lib/pipes/index';
+
 // =================== PRESETS ===================
 // export * from './lib/presets/index';  // TODO: Implement preset components
 

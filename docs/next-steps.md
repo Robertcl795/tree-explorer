@@ -2,15 +2,13 @@
 
 This roadmap is architecture-first and optimized for large datasets, virtualization correctness, and adapter-owned domain logic.
 
-## Current Status Checklist
+## Shared Vocabulary
 
-- [x] Core query filtering contract implemented.
-- [x] Angular wrapper `filterQuery` input implemented.
-- [x] Lit POC filter parity implemented.
-- [x] Filtering stories added.
-- [x] Docs hub and architecture docs refreshed.
-- [x] Filter-aware `selectRange` behavior in core/service paths.
-- [x] Server-side and hybrid cookbook stories added.
+- `TreeEngine`: state and policy orchestration layer.
+- `TreeNode`: normalized engine node state.
+- `TreeAdapter`: domain-aware mapping and API boundary.
+- `Filtering`: query-to-visibility pipeline.
+- `Page-Aware Virtual Scrolling`: placeholder-backed paging for stable virtualization.
 
 ## Near-Term Delivery Checklist
 

@@ -56,7 +56,9 @@
       <span class="tree-item-placeholder" aria-hidden="true"></span>
       <span class="tree-item-label placeholder-text">{{ row().label }}</span>
     } @else {
-      <span class="tree-item-label">{{ row().label }}</span>
+      <span
+        class="tree-item-label"
+        [innerHTML]="row().label | treeHighlightMatch: filterQuery() : row().highlightRanges"></span>
     }
     <!-- Spacer -->
     <div class="tree-item--spacer"></div>

@@ -101,6 +101,17 @@ Filtering remains adapter-owned for domain matching:
 - use `adapter.matches(data, query)` for custom logic
 - or provide `adapter.getSearchText(data)` for default text matching
 
+Row labels can highlight active filter matches with the exported pipe:
+
+- `TreeHighlightMatchPipe` (from `@tree-explorer`)
+- uses `row.highlightRanges` when available, falls back to query-text matching
+
+Example:
+
+```html
+<span [innerHTML]="row.label | treeHighlightMatch: filterQuery : row.highlightRanges"></span>
+```
+
 ## Adapter Example (Paged)
 
 ```ts
