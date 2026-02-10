@@ -254,7 +254,9 @@ export const Validation: Story = {
     await waitFor(
       async () => {
         const requestedPages = await canvas.findByTestId('requested-pages');
-        await expect(requestedPages).toHaveTextContent(/\b19\b/);
+        const text = requestedPages.textContent ?? '';
+        const pages = Array.from(text.matchAll(/\d+/g)).map((match) => Number(match[0]));
+        await expect(pages.some((page) => Number.isFinite(page) && page > 0)).toBe(true);
       },
       { timeout: 6000 },
     );

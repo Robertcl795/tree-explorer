@@ -758,12 +758,17 @@ export class TreeEngine<T> {
       : null;
     const loading = pageIndex !== null && !!pagedState?.inFlightPages.has(pageIndex);
     const error = pageIndex !== null && !!pagedState?.pageErrors.has(pageIndex);
+    const label = error
+      ? 'Failed to load page'
+      : loading
+        ? 'Loading...'
+        : 'Not loaded';
 
     return {
       id: node.id,
       parentId,
       level: node.level,
-      label: error ? 'Failed to load page' : 'Loading...',
+      label,
       icon: null,
       isLeaf: true,
       disabled: true,

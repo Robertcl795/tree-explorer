@@ -62,6 +62,10 @@
     color: #b00020;
   }
 
+  .empty-state.loading {
+    color: rgba(0, 0, 0, 0.7);
+  }
+
   .pinned-section {
     border-bottom: 1px solid #e0e0e0;
     padding: 8px 0;

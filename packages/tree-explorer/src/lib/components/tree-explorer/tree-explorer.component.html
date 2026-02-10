@@ -8,6 +8,13 @@
       <mat-icon>error</mat-icon>
       <span>{{ rootLoadError()!.message || 'Failed to load tree data' }}</span>
     </div>
+  } @else if (isLoading() && visibleRows().length === 0) {
+    <div class="empty-state loading">
+      <mat-progress-spinner
+        diameter="40"
+        mode="indeterminate"></mat-progress-spinner>
+      <span>Loading tree data...</span>
+    </div>
   } @else if (visibleRows().length === 0) {
     <div class="empty-state">
       <mat-icon>folder_open</mat-icon>

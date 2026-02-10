@@ -19,6 +19,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   DEFAULT_TREE_CONFIG,
   SELECTION_MODES,
@@ -51,6 +52,7 @@ import { TreeItemComponent } from '../tree-item/tree-item.component';
     MatDividerModule,
     MatIconModule,
     MatMenuModule,
+    MatProgressSpinnerModule,
     TreeItemComponent,
   ],
   providers: [TreeStateService],
@@ -127,8 +129,6 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
 
     effect(() => {
       this.treeService.setSources(this.data());
-      const viewport = this.viewport();
-      viewport?.checkViewportSize();
     });
 
     effect(() => {
@@ -151,6 +151,7 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
       if (!viewport) {
         return;
       }
+      viewport.checkViewportSize();
       const range = viewport.getRenderedRange();
       this.treeService.ensureRangeLoaded(range.start, range.end);
     });
@@ -161,6 +162,13 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
     if (!viewport) {
       return;
     }
+
+    viewport.scrolledIndexChange
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        const range = viewport.getRenderedRange();
+        this.treeService.ensureRangeLoaded(range.start, range.end);
+      });
 
     viewport.renderedRangeStream
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -356,6 +364,16 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
   }
 
   public trackByRowId = (_: number, row: TreeRowViewModel<T>) => row.id;
+
+  public ensureViewportRangeLoaded(): void {
+    const viewport = this.viewport();
+    if (!viewport) {
+      return;
+    }
+
+    const range = viewport.getRenderedRange();
+    this.treeService.ensureRangeLoaded(range.start, range.end);
+  }
 
   private getVisibleActions(row: TreeRowViewModel<T>): TreeContextAction<T>[] {
     if (row.placeholder) {
