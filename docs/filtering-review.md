@@ -167,3 +167,24 @@ Notes:
 3. Add wrapper parity targets:
    - align Angular and Lit wrappers on filter contract behavior.
 
+## Contract Test Matrix
+
+The following scenarios should remain covered as the filtering contract evolves:
+
+1. Query matching with ancestor visibility:
+   - when a descendant matches, loaded ancestors remain visible when `showParentsOfMatches` is enabled.
+2. Adapter-owned matching:
+   - `adapter.matches(data, query)` overrides default label/search-text matching.
+3. Highlight metadata:
+   - matched rows can surface highlight ranges through adapter or default text matching.
+4. Auto-expand behavior:
+   - when `autoExpandMatches` is enabled, ancestor paths for loaded matches are expanded.
+5. Selection policy:
+   - when `selectionPolicy = clearHidden`, selections not visible in filtered rows are pruned.
+6. Legacy compatibility:
+   - `adapter.isVisible` remains a baseline gate even when filter query is active.
+
+Reference implementation tests:
+
+- `packages/tree-core/src/lib/engine/tree-engine.spec.ts`
+- `packages/tree-explorer/src/lib/components/tree-explorer/tree-explorer.component.spec.ts`
