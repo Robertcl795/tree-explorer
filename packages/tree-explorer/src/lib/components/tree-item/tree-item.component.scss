@@ -28,6 +28,13 @@
     background-color: #f5f5f5;
   }
 
+  .tree-item:focus,
+  .tree-item:focus-visible {
+    outline: 2px solid #0b63ce;
+    outline-offset: -2px;
+    background-color: #eaf3ff;
+  }
+
   .tree-item:hover .context-menu-button {
     opacity: 1 !important;
   }

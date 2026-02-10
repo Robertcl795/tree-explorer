@@ -635,14 +635,33 @@ export class TreeExplorerComponent<TSource, T = TSource> {
       if (index >= 0) {
         const viewport = this.viewport();
         viewport?.scrollToIndex(index);
-        queueMicrotask(() => {
-          const selectorId = nodeId.replaceAll('"', '\\"');
-          const rowElement = viewport?.elementRef.nativeElement.querySelector(
-            `[data-tree-row-id="${selectorId}"]`,
-          ) as HTMLElement | null;
-          rowElement?.focus();
-        });
+        this.focusRowInViewport(nodeId);
       }
+    });
+  }
+
+  private focusRowInViewport(nodeId: string, attemptsLeft = 8): void {
+    const viewport = this.viewport();
+    const host = viewport?.elementRef.nativeElement as HTMLElement | undefined;
+    if (!host) {
+      return;
+    }
+
+    const rowElement = Array.from(
+      host.querySelectorAll<HTMLElement>('[data-tree-row-id]'),
+    ).find((element) => element.getAttribute('data-tree-row-id') === nodeId);
+
+    if (rowElement) {
+      rowElement.focus({ preventScroll: true });
+      return;
+    }
+
+    if (attemptsLeft <= 0) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      this.focusRowInViewport(nodeId, attemptsLeft - 1);
     });
   }
 
