@@ -1,6 +1,7 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { virtualizer } from '@lit-labs/virtualizer/virtualizer.js';
+import '@lit-labs/virtualizer';
+import { flow } from '@lit-labs/virtualizer/layouts/flow.js';
 import {
   DEFAULT_TREE_CONFIG,
   SELECTION_MODES,
@@ -21,19 +22,25 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
       display: block;
       height: 100%;
       width: 100%;
-      font-family: system-ui, sans-serif;
+      font-family: var(--tree-font-family, system-ui, sans-serif);
+      font-size: var(--tree-font-size, 13px);
+      font-weight: var(--tree-font-weight, 400);
+      line-height: var(--tree-line-height, 1.35);
+      color: var(--tree-fg, rgba(0, 0, 0, 0.87));
+      background: var(--tree-bg, #ffffff);
     }
 
     .container {
       display: flex;
       flex-direction: column;
       height: 100%;
+      background: var(--tree-bg, #ffffff);
     }
 
     .pinned {
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid var(--tree-pinned-border, var(--tree-border, #e0e0e0));
       padding: 8px 0;
-      background: #fafafa;
+      background: var(--tree-pinned-bg, #fafafa);
     }
 
     .pinned-title {
@@ -41,33 +48,50 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
       font-weight: 600;
       text-transform: uppercase;
       padding: 0 16px 4px 16px;
-      color: rgba(0, 0, 0, 0.6);
+      color: var(--tree-muted-fg, rgba(0, 0, 0, 0.6));
     }
 
     .row {
       display: flex;
       align-items: center;
-      height: var(--row-height, 36px);
-      padding: 0 8px;
-      gap: 8px;
-      border-bottom: 1px solid #f0f0f0;
+      height: var(--tree-row-height, 36px);
+      padding: 0 var(--tree-row-padding-x, 8px);
+      gap: var(--tree-row-gap, 8px);
+      border-bottom: 1px solid var(--tree-divider, #f0f0f0);
       cursor: pointer;
+      color: var(--tree-fg, rgba(0, 0, 0, 0.87));
     }
 
     .row.disabled {
-      opacity: 0.6;
+      opacity: var(--tree-disabled-opacity, 0.6);
       cursor: not-allowed;
     }
 
     .row.error {
-      border-left: 2px solid #b00020;
+      border-left: 2px solid var(--tree-error-border, #b00020);
+    }
+
+    .row:hover {
+      background: var(--tree-hover-bg, #f5f5f5);
+    }
+
+    .pinned .row {
+      color: var(--tree-pinned-link-fg, #0b63ce);
+      text-decoration: underline;
+      text-decoration-color: var(--tree-pinned-link-decoration, rgba(11, 99, 206, 0.35));
+      text-underline-offset: 2px;
+    }
+
+    .pinned .row:hover {
+      color: var(--tree-pinned-link-hover-fg, #064ea3);
     }
 
     .context-menu {
       position: fixed;
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      background: var(--tree-bg, #ffffff);
+      border: 1px solid var(--tree-border, #e0e0e0);
+      border-radius: var(--tree-radius, 4px);
+      box-shadow: var(--tree-shadow, 0 2px 8px rgba(0, 0, 0, 0.15));
       min-width: 160px;
       z-index: 1000;
     }
@@ -79,6 +103,7 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
       border: none;
       text-align: left;
       cursor: pointer;
+      color: var(--tree-fg, rgba(0, 0, 0, 0.87));
     }
 
     .context-menu button[disabled] {
@@ -91,11 +116,11 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: rgba(0, 0, 0, 0.6);
+      color: var(--tree-muted-fg, rgba(0, 0, 0, 0.6));
     }
 
     .error-state {
-      color: #b00020;
+      color: var(--tree-error-fg, #b00020);
     }
   `;
 
@@ -415,7 +440,7 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
                 style="height: 100%"
                 .items=${rows}
                 .renderItem=${(row: TreeRowViewModel<T>) => this.renderRow(row)}
-                .layout=${virtualizer.fixed({ itemSize: this.mergedConfig.virtualization?.itemSize ?? 36 })}>
+                .layout=${flow({ itemSize: this.mergedConfig.virtualization?.itemSize ?? 36 })}>
               </lit-virtualizer>
             `}
 

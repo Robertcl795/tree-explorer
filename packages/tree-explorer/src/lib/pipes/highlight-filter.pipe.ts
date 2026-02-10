@@ -8,7 +8,7 @@ import { TreeFilterInput, TreeFilterQuery, TreeMatchRange } from '@tree-core';
 })
 export class TreeHighlightMatchPipe implements PipeTransform {
   private static readonly MARK_OPEN =
-    '<mark class="td-tree-highlight-mark" style="background: var(--td-tree-highlight-bg, #fff3a0); color: var(--td-tree-highlight-color, currentColor); border-radius: var(--td-tree-highlight-radius, 2px); padding-inline: var(--td-tree-highlight-padding-inline, 1px);">';
+    '<mark class="td-tree-highlight-mark" style="background: var(--tree-highlight-bg, var(--td-tree-highlight-bg, #fff3a0)); color: var(--tree-highlight-color, var(--td-tree-highlight-color, currentColor)); border-radius: var(--tree-highlight-radius, var(--td-tree-highlight-radius, 2px)); padding-inline: var(--tree-highlight-padding-inline, var(--td-tree-highlight-padding-inline, 1px));">';
   private static readonly MARK_CLOSE = '</mark>';
 
   transform(

@@ -64,7 +64,7 @@ import { TreeItemComponent } from '../tree-item/tree-item.component';
   providers: [TreeStateService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tree-explorer.component.html',
-  styleUrls: ['./tree-explorer.component.scss'],
+  styleUrls: ['../../styles/tree-theme.css', './tree-explorer.component.scss'],
 })
 export class TreeExplorerComponent<TSource, T = TSource> {
   public readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');

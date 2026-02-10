@@ -1,38 +1,39 @@
 :host {
-  /* Critical: Fixed height for virtual scrolling consistency */
   display: block;
-  height: var(--tree-item-height, 32px);
-  
+  height: var(--tree-row-height, 36px);
+
   .tree-item {
     position: relative;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--tree-divider);
     height: 100%;
     display: flex;
     align-items: center;
+    color: var(--tree-fg);
+    background: transparent;
 
     &:not(.disabled) {
       cursor: context-menu;
     }
 
     &.disabled {
-      opacity: 0.6;
+      opacity: var(--tree-disabled-opacity);
       cursor: not-allowed;
     }
 
     &.error {
-      border-left: 2px solid #b00020;
+      border-left: 2px solid var(--tree-error-border);
     }
   }
 
   .tree-item:hover {
-    background-color: #f5f5f5;
+    background-color: var(--tree-hover-bg);
   }
 
   .tree-item:focus,
   .tree-item:focus-visible {
-    outline: 2px solid #0b63ce;
+    outline: var(--tree-focus-ring);
     outline-offset: -2px;
-    background-color: #eaf3ff;
+    background-color: var(--tree-focus-bg);
   }
 
   .tree-item:hover .context-menu-button {
@@ -44,27 +45,30 @@
     align-items: center;
     width: 100%;
     cursor: pointer;
-    padding: 4px 8px;
-    gap: 8px;
+    padding: var(--tree-row-padding-y) var(--tree-row-padding-x);
+    gap: var(--tree-row-gap);
   }
 
   .caret-button {
-    width: 32px;
-    height: 32px;
+    width: var(--tree-control-size);
+    height: var(--tree-control-size);
     flex-shrink: 0;
-    border-radius: 4px;
+    border-radius: var(--tree-radius);
     transition: background-color 0.2s ease;
     display: flex;
     padding: 0;
     align-items: center;
     justify-content: center;
-    
+
     mat-icon {
-      color: rgba(0, 0, 0, 0.54); // More neutral gray color
+      color: var(--tree-icon-fg);
+      font-size: var(--tree-icon-size);
+      width: var(--tree-icon-size);
+      height: var(--tree-icon-size);
     }
 
     &:hover:not([disabled]) {
-      background-color: rgba(0, 0, 0, 0.08);
+      background-color: var(--tree-hover-muted-bg);
     }
 
     &:disabled {
@@ -73,8 +77,11 @@
   }
 
   .tree-item-icon {
-    color: rgba(0, 0, 0, 0.54); // More neutral gray color for tree icons
+    color: var(--tree-icon-fg);
     flex-shrink: 0;
+    font-size: var(--tree-icon-size);
+    width: var(--tree-icon-size);
+    height: var(--tree-icon-size);
   }
 
   .tree-item-label {
@@ -82,21 +89,28 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: rgba(0, 0, 0, 0.87);
+    color: var(--tree-fg);
+    font-size: var(--tree-font-size);
+    line-height: var(--tree-line-height);
   }
 
   .tree-item-placeholder {
     display: inline-block;
     width: min(180px, 50%);
     height: 10px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #eceff1 25%, #f5f7f8 50%, #eceff1 75%);
+    border-radius: var(--tree-radius-pill);
+    background: linear-gradient(
+      90deg,
+      var(--tree-skeleton-bg) 25%,
+      var(--tree-skeleton-bg-alt) 50%,
+      var(--tree-skeleton-bg) 75%
+    );
     background-size: 200% 100%;
     animation: tree-placeholder-shimmer 1.2s linear infinite;
   }
 
   .placeholder-text {
-    color: rgba(0, 0, 0, 0.45);
+    color: var(--tree-disabled-fg);
     font-style: italic;
   }
 
@@ -110,14 +124,17 @@
   }
 
   .context-menu-button  {
-    width: 32px;
-    height: 32px;
+    width: var(--tree-control-size);
+    height: var(--tree-control-size);
     flex-shrink: 0;
     opacity: 0;
     transition: opacity 0.2s;
-    
+
     mat-icon {
-      color: rgba(0, 0, 0, 0.54);
+      color: var(--tree-icon-fg);
+      font-size: var(--tree-icon-size);
+      width: var(--tree-icon-size);
+      height: var(--tree-icon-size);
     }
   }
 
@@ -128,22 +145,21 @@
   .checkbox-wrapper {
     display: flex;
     align-items: center;
-    border-radius: 4px;
-    padding: 4px;
-    margin: -4px;
+    border-radius: var(--tree-radius);
+    padding: var(--tree-row-padding-y);
+    margin: calc(var(--tree-row-padding-y) * -1);
     transition: background-color 0.2s ease;
     cursor: pointer;
 
     &:hover {
-      background-color: rgba(0, 0, 0, 0.08);
+      background-color: var(--tree-hover-muted-bg);
     }
 
     mat-checkbox.mat-mdc-checkbox-disabled {
-      opacity: 0.6;
+      opacity: var(--tree-disabled-opacity);
       cursor: not-allowed;
     }
   }
-
 }
 
 @keyframes tree-placeholder-shimmer {

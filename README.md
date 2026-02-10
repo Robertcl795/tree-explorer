@@ -36,7 +36,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Storybook coverage for advanced, filtering, and page-aware scenarios.
 - Pinned cookbook story (star/unstar, navigate-to-original, reorder, mocked GET/POST/DELETE).
 - Angular highlight pipe for matched labels (`TreeHighlightMatchPipe`), driven by current `filterQuery`.
-- Theme tokens for highlight rendering (`--td-tree-highlight-*`) so matches can align with host design systems.
+- First-class theme contract via CSS variables (`--tree-*`) for design-system alignment.
 
 ## Platform Baseline
 
@@ -110,6 +110,7 @@ Start here if you are new:
 2. [Next Steps](./docs/next-steps.md)
 3. [Filtering Review](./docs/filtering-review.md)
 4. [Pinned Items](./docs/pinned-items.md)
+5. [Theming](./docs/theming.md)
 
 ### Architecture and Design
 
@@ -117,6 +118,7 @@ Start here if you are new:
 - [Filtering Review](./docs/filtering-review.md)
 - [Page-Aware Virtual Scroll](./docs/page-aware-virtual-scroll.md)
 - [Pinned Items](./docs/pinned-items.md)
+- [Theming](./docs/theming.md)
 
 ### Quality and Planning
 

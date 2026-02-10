@@ -1,0 +1,73 @@
+:host {
+  /* Layout and sizing */
+  --tree-row-height: 36px;
+  --tree-row-padding-x: 8px;
+  --tree-row-padding-y: 4px;
+  --tree-row-gap: 8px;
+  --tree-indent-size: 24px;
+  --tree-control-size: 32px;
+  --tree-icon-size: 16px;
+  --tree-empty-icon-size: 48px;
+  --tree-empty-padding-block: 40px;
+  --tree-empty-padding-inline: 16px;
+  --tree-pinned-indent-offset: 20px;
+  --tree-pinned-children-padding-left: 18px;
+  --tree-pinned-state-padding-left: 16px;
+
+  /* Typography */
+  --tree-font-family: Roboto, 'Helvetica Neue', sans-serif;
+  --tree-font-size: 13px;
+  --tree-font-weight: 400;
+  --tree-line-height: 1.35;
+  --tree-heading-font-size: 13px;
+  --tree-heading-font-weight: 600;
+
+  /* Colors */
+  --tree-bg: #ffffff;
+  --tree-fg: rgba(0, 0, 0, 0.87);
+  --tree-muted-fg: rgba(0, 0, 0, 0.6);
+  --tree-subtle-fg: rgba(0, 0, 0, 0.58);
+  --tree-disabled-fg: rgba(0, 0, 0, 0.45);
+  --tree-disabled-opacity: 0.6;
+  --tree-border: #e0e0e0;
+  --tree-divider: #f0f0f0;
+  --tree-hover-bg: #f5f5f5;
+  --tree-hover-muted-bg: rgba(0, 0, 0, 0.08);
+  --tree-focus-bg: #eaf3ff;
+  --tree-focus-ring: 2px solid #0b63ce;
+  --tree-error-fg: #b00020;
+  --tree-error-border: #b00020;
+  --tree-icon-fg: rgba(0, 0, 0, 0.54);
+  --tree-skeleton-bg: #eceff1;
+  --tree-skeleton-bg-alt: #f5f7f8;
+
+  /* Surfaces and effects */
+  --tree-radius: 4px;
+  --tree-radius-pill: 999px;
+  --tree-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  /* Pinned section */
+  --tree-pinned-bg: linear-gradient(180deg, #fcfcfd 0%, #f7f8fa 100%);
+  --tree-pinned-border: var(--tree-border);
+  --tree-pinned-branch-fg: rgba(0, 0, 0, 0.74);
+  --tree-pinned-accent: #f6b300;
+  --tree-pinned-connector: rgba(0, 0, 0, 0.12);
+  --tree-pinned-item-hover-bg: rgba(0, 0, 0, 0.035);
+  --tree-pinned-item-hover-border: rgba(0, 0, 0, 0.2);
+  --tree-pinned-link-fg: #0b63ce;
+  --tree-pinned-link-hover-fg: #064ea3;
+  --tree-pinned-link-decoration: rgba(11, 99, 206, 0.35);
+  --tree-pinned-link-hover-decoration: rgba(6, 78, 163, 0.55);
+
+  /* Match highlighting */
+  --tree-highlight-bg: #fff3a0;
+  --tree-highlight-color: currentColor;
+  --tree-highlight-radius: 2px;
+  --tree-highlight-padding-inline: 1px;
+
+  /* Backward-compatible aliases for older docs/examples */
+  --td-tree-highlight-bg: var(--tree-highlight-bg);
+  --td-tree-highlight-color: var(--tree-highlight-color);
+  --td-tree-highlight-radius: var(--tree-highlight-radius);
+  --td-tree-highlight-padding-inline: var(--tree-highlight-padding-inline);
+}

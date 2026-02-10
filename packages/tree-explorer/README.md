@@ -11,6 +11,7 @@ Baseline: Angular `19.2.x` in this workspace.
 - Lit wrapper POC: [@lit-tree-explorer README](../lit-tree-explorer/README.md)
 - Architecture: [docs/architecture.md](../../docs/architecture.md)
 - Pinned items: [docs/pinned-items.md](../../docs/pinned-items.md)
+- Theming: [docs/theming.md](../../docs/theming.md)
 - Next steps: [docs/next-steps.md](../../docs/next-steps.md)
 
 ## Architectural Role
@@ -113,21 +114,26 @@ Example:
 <span [innerHTML]="row.label | treeHighlightMatch: filterQuery : row.highlightRanges"></span>
 ```
 
-Theme tokens:
+Theming tokens:
 
-- `--td-tree-highlight-bg` (default `#fff3a0`)
-- `--td-tree-highlight-color` (default `inherit`)
-- `--td-tree-highlight-radius` (default `2px`)
-- `--td-tree-highlight-padding-inline` (default `1px`)
+- `--tree-highlight-bg` (default `#fff3a0`)
+- `--tree-highlight-color` (default `currentColor`)
+- `--tree-highlight-radius` (default `2px`)
+- `--tree-highlight-padding-inline` (default `1px`)
+- legacy aliases `--td-tree-highlight-*` remain supported
 
 ```css
 tree-explorer {
-  --td-tree-highlight-bg: #dff6ff;
-  --td-tree-highlight-color: #0b3b5a;
-  --td-tree-highlight-radius: 3px;
-  --td-tree-highlight-padding-inline: 2px;
+  --tree-highlight-bg: #dff6ff;
+  --tree-highlight-color: #0b3b5a;
+  --tree-highlight-radius: 3px;
+  --tree-highlight-padding-inline: 2px;
 }
 ```
+
+Full variable reference:
+
+- [docs/theming.md](../../docs/theming.md)
 
 ## Pinned Items Usage
 

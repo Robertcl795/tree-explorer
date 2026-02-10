@@ -9,6 +9,7 @@ A minimal Lit wrapper around tree-core. This is a scaffold-only proof of concept
 - Angular wrapper: [@tree-explorer README](../tree-explorer/README.md)
 - Architecture: [docs/architecture.md](../../docs/architecture.md)
 - Pinned items: [docs/pinned-items.md](../../docs/pinned-items.md)
+- Theming: [docs/theming.md](../../docs/theming.md)
 - Next steps: [docs/next-steps.md](../../docs/next-steps.md)
 
 Run from workspace root:
@@ -31,6 +32,23 @@ Run from workspace root:
 - Pinned section navigation
 - Async root loading and child loading with error reporting
 - Query-driven filtering via `filterQuery`
+- Shared theme token names with Angular wrapper (`--tree-*`)
+
+## Theming
+
+The Lit POC mirrors the same CSS variable contract used by `@tree-explorer`.
+Set variables on `td-tree-lit` host (or a parent wrapper).
+
+```css
+td-tree-lit {
+  --tree-bg: #ffffff;
+  --tree-fg: #111827;
+  --tree-row-height: 36px;
+  --tree-pinned-link-fg: #0b63ce;
+}
+```
+
+See full token reference in [docs/theming.md](../../docs/theming.md).
 
 ## Usage
 

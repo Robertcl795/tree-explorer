@@ -17,6 +17,7 @@
 - `Filtering`: query-driven visibility pipeline with configurable policies.
 - `Page-Aware Virtual Scrolling`: placeholder-backed paging that preserves viewport geometry.
 - `Pinned Items`: optional root-level shortcut section backed by stable pinned entry records.
+- `Theme Contract`: CSS-variable API (`--tree-*`) for design-system styling without wrapper logic changes.
 
 ## Reading Order
 
@@ -74,6 +75,21 @@ flowchart LR
   - rendering and viewport integration
   - presentational text highlighting (`TreeHighlightMatchPipe`)
   - events and interaction wiring
+  - theme token consumption (no domain rules in CSS)
+
+## Theme Contract
+
+```mermaid
+flowchart LR
+  DS[Design System Tokens] --> MAP[App Theme Mapping]
+  MAP --> TREEVARS[Tree CSS Vars --tree-*]
+  TREEVARS --> NG[tree-explorer Angular]
+  TREEVARS --> LIT[lit-tree-explorer POC]
+```
+
+- Visual customization is done through CSS variables.
+- Structural behavior remains in config/engine (`TreeConfig`, `TreeEngine`).
+- Token names are shared across Angular and Lit wrappers.
 
 ## Expand and Page-Aware Loading
 
@@ -155,5 +171,6 @@ flowchart TD
 - Filtering review: [docs/filtering-review.md](./filtering-review.md)
 - Page-aware loading: [docs/page-aware-virtual-scroll.md](./page-aware-virtual-scroll.md)
 - Pinned items: [docs/pinned-items.md](./pinned-items.md)
+- Theming: [docs/theming.md](./theming.md)
 - Quality report: [docs/quality-report.md](./quality-report.md)
 - Roadmap: [docs/next-steps.md](./next-steps.md)

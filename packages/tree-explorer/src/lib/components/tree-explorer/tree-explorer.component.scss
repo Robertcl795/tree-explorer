@@ -1,13 +1,14 @@
 :host {
-  --td-tree-highlight-bg: #fff3a0;
-  --td-tree-highlight-color: inherit;
-  --td-tree-highlight-radius: 2px;
-  --td-tree-highlight-padding-inline: 1px;
-
   display: block;
   width: 100%;
   height: 100%;
   min-height: 400px;
+  font-family: var(--tree-font-family);
+  font-size: var(--tree-font-size);
+  font-weight: var(--tree-font-weight);
+  line-height: var(--tree-line-height);
+  color: var(--tree-fg);
+  background: var(--tree-bg);
 
   .tree-main-container {
     display: flex;
@@ -16,6 +17,8 @@
     width: 100%;
     min-height: inherit;
     overflow: hidden;
+    background: var(--tree-bg);
+    color: var(--tree-fg);
   }
 
   .main-loading-bar {
@@ -43,6 +46,7 @@
     box-sizing: border-box;
     display: block;
     position: relative;
+    background: var(--tree-bg);
   }
 
   .empty-state {
@@ -50,86 +54,86 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px 16px;
-    gap: 16px;
-    color: rgba(0, 0, 0, 0.6);
+    padding: var(--tree-empty-padding-block) var(--tree-empty-padding-inline);
+    gap: calc(var(--tree-row-gap) * 2);
+    color: var(--tree-muted-fg);
     flex: 1;
     height: 100%;
   }
 
   .empty-state mat-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
+    font-size: var(--tree-empty-icon-size);
+    width: var(--tree-empty-icon-size);
+    height: var(--tree-empty-icon-size);
   }
 
   .empty-state.error {
-    color: #b00020;
+    color: var(--tree-error-fg);
   }
 
   .empty-state.loading {
-    color: rgba(0, 0, 0, 0.7);
+    color: var(--tree-muted-fg);
   }
 
   .pinned-section {
-    border-bottom: 1px solid #e0e0e0;
-    padding: 6px 0 6px;
-    background: linear-gradient(180deg, #fcfcfd 0%, #f7f8fa 100%);
+    border-bottom: 1px solid var(--tree-pinned-border);
+    padding: 6px 0;
+    background: var(--tree-pinned-bg);
   }
 
   .pinned-branch {
     display: flex;
     align-items: center;
-    padding: 0 8px 0 4px;
-    color: rgba(0, 0, 0, 0.74);
+    padding: 0 var(--tree-row-padding-x) 0 calc(var(--tree-row-padding-x) / 2);
+    color: var(--tree-pinned-branch-fg);
     cursor: pointer;
     user-select: none;
   }
 
   .pinned-branch-caret {
-    width: 32px;
-    height: 32px;
+    width: var(--tree-control-size);
+    height: var(--tree-control-size);
     margin-right: 2px;
   }
 
   .pinned-branch-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    margin-right: 8px;
-    color: #f6b300;
+    font-size: var(--tree-icon-size);
+    width: var(--tree-icon-size);
+    height: var(--tree-icon-size);
+    margin-right: var(--tree-row-gap);
+    color: var(--tree-pinned-accent);
   }
 
   .pinned-branch-label {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--tree-heading-font-size);
+    font-weight: var(--tree-heading-font-weight);
     letter-spacing: 0.01em;
   }
 
   .pinned-children {
     position: relative;
-    margin-left: 20px;
-    padding-left: 18px;
+    margin-left: var(--tree-pinned-indent-offset);
+    padding-left: var(--tree-pinned-children-padding-left);
   }
 
   .pinned-children::before {
     content: '';
     position: absolute;
-    left: 8px;
+    left: calc(var(--tree-pinned-children-padding-left) - 10px);
     top: 0;
     bottom: 2px;
     width: 1px;
-    background: rgba(0, 0, 0, 0.12);
+    background: var(--tree-pinned-connector);
   }
 
   .pinned-state {
-    padding: 0 0 6px 16px;
-    font-size: 12px;
-    color: rgba(0, 0, 0, 0.58);
+    padding: 0 0 6px var(--tree-pinned-state-padding-left);
+    font-size: calc(var(--tree-font-size) - 1px);
+    color: var(--tree-subtle-fg);
   }
 
   .pinned-state.error {
-    color: #b00020;
+    color: var(--tree-error-fg);
   }
 
   .pinned-list {
@@ -141,46 +145,46 @@
   .pinned-item {
     display: flex;
     align-items: center;
-    padding: 0 8px 0 18px;
+    padding: 0 var(--tree-row-padding-x) 0 var(--tree-pinned-children-padding-left);
     border-left: 3px solid transparent;
   }
 
   .pinned-item:hover {
-    background: rgba(0, 0, 0, 0.035);
-    border-left-color: rgba(0, 0, 0, 0.2);
+    background: var(--tree-pinned-item-hover-bg);
+    border-left-color: var(--tree-pinned-item-hover-border);
   }
 
   .pinned-link {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--tree-row-gap);
     flex: 1;
     min-width: 0;
-    color: #0b63ce;
+    color: var(--tree-pinned-link-fg);
     text-decoration: underline;
-    text-decoration-color: rgba(11, 99, 206, 0.35);
+    text-decoration-color: var(--tree-pinned-link-decoration);
     text-underline-offset: 2px;
-    font-size: 13px;
-    line-height: 1.3;
-    padding: 4px 0;
+    font-size: var(--tree-font-size);
+    line-height: var(--tree-line-height);
+    padding: var(--tree-row-padding-y) 0;
   }
 
   .pinned-link:hover {
-    color: #064ea3;
-    text-decoration-color: rgba(6, 78, 163, 0.55);
+    color: var(--tree-pinned-link-hover-fg);
+    text-decoration-color: var(--tree-pinned-link-hover-decoration);
   }
 
   .pinned-link.missing {
-    color: rgba(0, 0, 0, 0.45);
+    color: var(--tree-disabled-fg);
     text-decoration: none;
     cursor: not-allowed;
   }
 
   .pinned-link-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    color: rgba(0, 0, 0, 0.56);
+    font-size: var(--tree-icon-size);
+    width: var(--tree-icon-size);
+    height: var(--tree-icon-size);
+    color: var(--tree-icon-fg);
   }
 
   .pinned-link-label {
@@ -190,7 +194,7 @@
   }
 
   .pinned-context {
-    margin-left: 4px;
+    margin-left: calc(var(--tree-row-gap) / 2);
     flex-shrink: 0;
   }
 

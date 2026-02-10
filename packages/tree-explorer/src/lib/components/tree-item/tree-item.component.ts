@@ -33,7 +33,7 @@ import { TreeHighlightMatchPipe } from '../../pipes';
   styleUrls: ['./tree-item.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    '[style.--tree-item-height.px]': 'itemSize()',
+    '[style.--tree-row-height.px]': 'itemSize()',
   },
 })
 export class TreeItemComponent<T = any> {
