@@ -4,6 +4,14 @@ Angular wrapper for `@tree-core` with virtualized rendering, adapter-driven beha
 
 Baseline: Angular `19.2.x` in this workspace.
 
+## Related Documentation
+
+- Workspace hub: [td-tree-explorer README](../../README.md)
+- Core engine: [@tree-core README](../tree-core/README.md)
+- Lit wrapper POC: [@lit-tree-explorer README](../lit-tree-explorer/README.md)
+- Architecture: [docs/architecture.md](../../docs/architecture.md)
+- Next steps: [docs/next-steps.md](../../docs/next-steps.md)
+
 ## Architectural Role
 
 - `TreeExplorerComponent`

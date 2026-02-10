@@ -14,6 +14,7 @@ This workspace is configured for a single root entrypoint using `pnpm` workspace
 
 - Root workspace file: `pnpm-workspace.yaml`
 - Packages included: `packages/*`
+- Hub README: [README.md](../README.md)
 
 ## Install Strategy
 
@@ -66,6 +67,10 @@ Upgrade policy:
   - Runs Lit Storybook.
 - `pnpm storybook:build:lit`
   - Builds Lit Storybook.
+- `pnpm storybook:all`
+  - Runs Angular and Lit Storybook in parallel.
+- `pnpm storybook:build:all`
+  - Builds Angular and Lit Storybooks from root scripts.
 - `pnpm clean`
   - Cleans dist and workspace artifacts.
 

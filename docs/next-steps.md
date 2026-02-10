@@ -10,14 +10,14 @@ This roadmap is architecture-first and optimized for large datasets, virtualizat
 - [x] Filtering stories added.
 - [x] Docs hub and architecture docs refreshed.
 - [x] Filter-aware `selectRange` behavior in core/service paths.
-- [ ] Server-side filtering contract examples in core docs/stories.
+- [x] Server-side and hybrid cookbook stories added.
 
 ## Near-Term Delivery Checklist
 
-1. Add a server-side filtering cookbook with paginated API examples.
-2. Add hybrid mode cookbook showing loaded-node + fetch strategy boundaries.
-3. Add combined filtering + page-aware integration tests.
-4. Add query-performance instrumentation and thresholds.
+1. Add combined filtering + page-aware integration tests.
+2. Add query-performance instrumentation and thresholds.
+3. Add wrapper-level debounce defaults for high-frequency typing.
+4. Add cookbook docs for API-side pagination contracts and caching strategy.
 
 ## Filtering Roadmap
 
@@ -48,6 +48,11 @@ Recommended for datasets too large for in-memory traversal.
 - Return deterministic ordering and stable IDs per parent.
 - Preserve placeholder semantics for viewport geometry.
 - Treat client-side filtering as optional refinement over loaded pages.
+
+Cookbook stories:
+
+- [Filtering cookbook stories](../packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts) (includes live search bar + play-tests)
+- [Baseline filtering stories](../packages/tree-explorer/src/stories/tree-explorer.filtering.stories.ts)
 
 ## Adapter Techniques
 

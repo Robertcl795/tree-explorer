@@ -27,7 +27,7 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
 - Node: `>=18`
 - pnpm: `9.x`
 
-See `docs/next-steps.md` for Angular 20 adoption opportunities.
+See [Next Steps](./docs/next-steps.md) for Angular 20 adoption opportunities.
 
 ## Quickstart
 
@@ -89,24 +89,24 @@ export class DemoComponent {
 
 ### Architecture and Design
 
-- `docs/architecture.md`
-- `docs/filtering-review.md`
-- `docs/page-aware-virtual-scroll.md`
+- [Architecture](./docs/architecture.md)
+- [Filtering Review](./docs/filtering-review.md)
+- [Page-Aware Virtual Scroll](./docs/page-aware-virtual-scroll.md)
 
 ### Quality and Planning
 
-- `docs/quality-report.md`
-- `docs/next-steps.md`
+- [Quality Report](./docs/quality-report.md)
+- [Next Steps](./docs/next-steps.md)
 
 ### Workspace and Operations
 
-- `docs/monorepo.md`
+- [Monorepo Workflow](./docs/monorepo.md)
 
 ### Package Guides
 
-- `packages/tree-core/README.md`
-- `packages/tree-explorer/README.md`
-- `packages/lit-tree-explorer/README.md`
+- [@tree-core README](./packages/tree-core/README.md)
+- [@tree-explorer README](./packages/tree-explorer/README.md)
+- [@lit-tree-explorer README](./packages/lit-tree-explorer/README.md)
 
 ## Workspace Commands
 
@@ -116,6 +116,10 @@ export class DemoComponent {
 - `pnpm lint`
 - `pnpm storybook`
 - `pnpm storybook:build`
+- `pnpm storybook:lit`
+- `pnpm storybook:build:lit`
+- `pnpm storybook:all`
+- `pnpm storybook:build:all`
 - `pnpm docs:check`
 
 ## Packages

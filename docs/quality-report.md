@@ -45,13 +45,14 @@ Deprecated findings removed from active report:
 - [x] Architecture diagrams are flowchart-based and GitHub-safe.
 - [x] Filtering review reflects current contract and risks.
 - [x] Next-steps roadmap includes filtering and platform strategy.
+- [x] Filtering cookbook stories include client, hybrid, and server examples.
 - [x] Docs sanity check script (`pnpm docs:check`) is in place.
 
 ## Remaining Risks
 
 1. Filtering is still full-scan O(n) per recompute on large loaded trees.
 2. Hybrid mode deeper-match loading remains wrapper strategy, not core scheduler policy.
-3. Server-side mode still needs cookbook-quality examples in docs/stories.
+3. Cookbook examples exist, but integration tests for filtering + paging combinations are still limited.
 4. Browser-based Karma tests can be environment-limited in sandbox/CI images without browser/runtime support.
 
 ## Recommended Validation Gate
@@ -74,7 +75,7 @@ pnpm test
 
 ### P0
 
-1. Add explicit server-side and hybrid filtering cookbook examples.
+1. Add integration tests for server/hybrid cookbook scenarios.
 2. Add performance guardrails for high-frequency filter updates.
 
 ### P1

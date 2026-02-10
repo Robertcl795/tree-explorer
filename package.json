@@ -35,6 +35,8 @@
     "storybook:build": "pnpm -r --filter @tree-explorer --aggregate-output run storybook:build",
     "storybook:lit": "pnpm -r --filter @lit-tree-explorer --aggregate-output run storybook",
     "storybook:build:lit": "pnpm -r --filter @lit-tree-explorer --aggregate-output run storybook:build",
+    "storybook:all": "pnpm -r --parallel --filter @tree-explorer --filter @lit-tree-explorer --aggregate-output run storybook",
+    "storybook:build:all": "pnpm -r --filter @tree-explorer --filter @lit-tree-explorer --aggregate-output run storybook:build",
     "docs:check": "node ./scripts/docs-check.mjs",
     "clean": "pnpm -r --if-present run clean && rm -rf dist out-tsc storybook-static .angular",
     "dev": "pnpm storybook"

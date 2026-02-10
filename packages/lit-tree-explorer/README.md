@@ -2,6 +2,19 @@
 
 A minimal Lit wrapper around tree-core. This is a scaffold-only proof of concept and is not wired into the build.
 
+## Related Documentation
+
+- Workspace hub: [td-tree-explorer README](../../README.md)
+- Core engine: [@tree-core README](../tree-core/README.md)
+- Angular wrapper: [@tree-explorer README](../tree-explorer/README.md)
+- Architecture: [docs/architecture.md](../../docs/architecture.md)
+- Next steps: [docs/next-steps.md](../../docs/next-steps.md)
+
+Run from workspace root:
+
+- `pnpm storybook:lit`
+- `pnpm storybook:build:lit`
+
 ## Dependencies
 
 - lit

@@ -144,5 +144,9 @@ Required scenarios:
 
 Reference tests:
 
-- `packages/tree-core/src/lib/engine/tree-engine.spec.ts`
-- `packages/tree-explorer/src/lib/components/tree-explorer/tree-explorer.component.spec.ts`
+- [packages/tree-core/src/lib/engine/tree-engine.spec.ts](../packages/tree-core/src/lib/engine/tree-engine.spec.ts)
+- [packages/tree-explorer/src/lib/components/tree-explorer/tree-explorer.component.spec.ts](../packages/tree-explorer/src/lib/components/tree-explorer/tree-explorer.component.spec.ts)
+
+Cookbook stories:
+
+- [packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts](../packages/tree-explorer/src/stories/tree-explorer.filtering-cookbook.stories.ts)

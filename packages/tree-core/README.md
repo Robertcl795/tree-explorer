@@ -2,6 +2,14 @@
 
 Framework-agnostic engine and contracts for tree rendering, selection, lazy loading, and page-aware virtualization.
 
+## Related Documentation
+
+- Workspace hub: [td-tree-explorer README](../../README.md)
+- Angular wrapper: [@tree-explorer README](../tree-explorer/README.md)
+- Lit wrapper POC: [@lit-tree-explorer README](../lit-tree-explorer/README.md)
+- Architecture: [docs/architecture.md](../../docs/architecture.md)
+- Filtering review: [docs/filtering-review.md](../../docs/filtering-review.md)
+
 ## Design Intent
 
 - Adapters own domain-specific mapping and data fetching.

@@ -118,7 +118,7 @@ flowchart TD
 
 ## Related Docs
 
-- Filtering review: `docs/filtering-review.md`
-- Page-aware loading: `docs/page-aware-virtual-scroll.md`
-- Quality report: `docs/quality-report.md`
-- Roadmap: `docs/next-steps.md`
+- Filtering review: [docs/filtering-review.md](./filtering-review.md)
+- Page-aware loading: [docs/page-aware-virtual-scroll.md](./page-aware-virtual-scroll.md)
+- Quality report: [docs/quality-report.md](./quality-report.md)
+- Roadmap: [docs/next-steps.md](./next-steps.md)
