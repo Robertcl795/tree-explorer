@@ -1,10 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   computed,
   effect,
   inject,
@@ -13,7 +11,6 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
@@ -60,7 +57,7 @@ import { TreeItemComponent } from '../tree-item/tree-item.component';
   templateUrl: './tree-explorer.component.html',
   styleUrls: ['./tree-explorer.component.scss'],
 })
-export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewInit {
+export class TreeExplorerComponent<TSource, T = TSource> {
   public readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
   public readonly contextMenuTrigger = viewChild(MatMenuTrigger);
 
@@ -82,7 +79,6 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
   public readonly dragEnd = output<TreeDragEvent<T>>();
 
   protected readonly treeService = inject(TreeStateService<TSource, T>);
-  private readonly destroyRef = inject(DestroyRef);
 
   public readonly contextRow = signal<TreeRowViewModel<T> | null>(null);
   public readonly contextNode = signal<TreeNode<T> | null>(null);
@@ -155,26 +151,28 @@ export class TreeExplorerComponent<TSource, T = TSource> implements AfterViewIni
       const range = viewport.getRenderedRange();
       this.treeService.ensureRangeLoaded(range.start, range.end);
     });
-  }
 
-  public ngAfterViewInit(): void {
-    const viewport = this.viewport();
-    if (!viewport) {
-      return;
-    }
+    effect((onCleanup) => {
+      const viewport = this.viewport();
+      if (!viewport) {
+        return;
+      }
 
-    viewport.scrolledIndexChange
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
+      const onRangeChange = () => {
         const range = viewport.getRenderedRange();
         this.treeService.ensureRangeLoaded(range.start, range.end);
-      });
+      };
 
-    viewport.renderedRangeStream
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((range) => {
+      const scrolledSubscription = viewport.scrolledIndexChange.subscribe(onRangeChange);
+      const renderedSubscription = viewport.renderedRangeStream.subscribe((range) => {
         this.treeService.ensureRangeLoaded(range.start, range.end);
       });
+
+      onCleanup(() => {
+        scrolledSubscription.unsubscribe();
+        renderedSubscription.unsubscribe();
+      });
+    });
   }
 
   public hasContextActions(row: TreeRowViewModel<T>): boolean {
