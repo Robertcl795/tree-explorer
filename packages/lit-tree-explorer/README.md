@@ -16,6 +16,7 @@ A minimal Lit wrapper around tree-core. This is a scaffold-only proof of concept
 - Drag and drop hooks (uses adapter.getDragData)
 - Pinned section navigation
 - Async root loading and child loading with error reporting
+- Query-driven filtering via `filterQuery`
 
 ## Usage
 
@@ -41,4 +42,5 @@ const el = document.querySelector('td-tree-lit');
 (el as any).adapter = adapter;
 (el as any).config = config;
 (el as any).data = [{ id: 'root', name: 'Workspace' }];
+(el as any).filterQuery = 'workspace';
 ```

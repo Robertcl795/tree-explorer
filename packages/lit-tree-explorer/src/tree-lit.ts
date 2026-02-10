@@ -8,6 +8,7 @@ import {
   TreeChildrenResult,
   TreeConfig,
   TreeEngine,
+  TreeFilterInput,
   TreeLoadError,
   TreeNode,
   TreeRowViewModel,
@@ -107,6 +108,9 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
   @property({ attribute: false })
   data: TreeChildrenResult<TSource> | TSource[] = [];
 
+  @property({ attribute: false })
+  filterQuery: TreeFilterInput = null;
+
   @state()
   private _rootError: TreeLoadError | null = null;
 
@@ -129,6 +133,7 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
       display: { ...defaults.display, ...this.config.display },
       selection: this.config.selection ?? defaults.selection,
       virtualization: { ...defaults.virtualization, ...this.config.virtualization },
+      filtering: { ...defaults.filtering, ...this.config.filtering },
       actions: this.config.actions ?? defaults.actions,
       dragDrop: this.config.dragDrop ?? defaults.dragDrop,
       pinned: this.config.pinned ?? defaults.pinned,
@@ -139,6 +144,10 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
   protected updated(changed: Map<string, unknown>): void {
     if (changed.has('config')) {
       this.engine.configure(this.mergedConfig);
+      this.syncFilter();
+    }
+    if (changed.has('filterQuery')) {
+      this.syncFilter();
     }
     if (changed.has('adapter') || changed.has('data')) {
       this.loadRoots();
@@ -181,6 +190,7 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
             },
       );
       this.engine.init(nodes as TreeNode<T>[]);
+      this.syncFilter();
     } catch (error) {
       const loadError: TreeLoadError = {
         scope: 'root',
@@ -222,7 +232,7 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
     if (!this.adapter) {
       return [];
     }
-    return this.engine.getVisibleRows(this.adapter, this.mergedConfig);
+    return this.engine.getFilteredFlatList(this.adapter, this.mergedConfig);
   }
 
   private get pinnedRows(): TreeRowViewModel<T>[] {
@@ -241,6 +251,7 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
       row.id,
       typeof this.adapter.loadChildren === 'function',
     );
+    this.engine.reapplyFilter(this.adapter);
     if (shouldLoad) {
       this.loadChildren(row);
     }
@@ -264,6 +275,7 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
           : (source as unknown as T),
       }));
       this.engine.setChildrenLoaded(row.id, children as TreeNode<T>[]);
+      this.engine.reapplyFilter(this.adapter);
       this.requestUpdate();
     } catch (error) {
       const loadError: TreeLoadError = {
@@ -276,6 +288,31 @@ export class TreeLit<TSource, T = TSource> extends LitElement {
       this.engine.clearLoading(row.id);
       this.mergedConfig.onError?.(loadError);
       this.dispatchEvent(new CustomEvent('load-error', { detail: loadError }));
+      this.requestUpdate();
+    }
+  }
+
+  private syncFilter(): void {
+    if (!this.adapter) {
+      return;
+    }
+
+    const query = this.filterQuery;
+    const shouldClear =
+      query === null ||
+      query === undefined ||
+      (typeof query === 'string' && query.trim().length === 0);
+
+    if (shouldClear) {
+      const changed = this.engine.clearFilter();
+      if (changed) {
+        this.requestUpdate();
+      }
+      return;
+    }
+
+    const changed = this.engine.setFilter(query, this.adapter);
+    if (changed) {
       this.requestUpdate();
     }
   }
@@ -421,4 +458,3 @@ declare global {
     'td-tree-lit': TreeLit<any, any>;
   }
 }
-
