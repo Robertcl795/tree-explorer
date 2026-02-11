@@ -46,7 +46,7 @@ flowchart LR
     UI[Filter and Interaction Inputs]
   end
 
-  subgraph CORE[@tree-core]
+  subgraph CORE["@tree-core"]
     ENG[TreeEngine Facade]
     IDX[Node Index]
     FLAT[Flattening]
@@ -58,7 +58,7 @@ flowchart LR
     NAV[Navigation]
   end
 
-  subgraph NG[@tree-explorer]
+  subgraph NG["@tree-explorer"]
     CMP[TreeExplorerComponent]
     SVC[TreeStateService]
     VP[CDK Virtual Scroll]

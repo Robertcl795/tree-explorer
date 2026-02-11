@@ -1,0 +1,61 @@
+@if (!row().isLeaf) {
+  <cv-icon
+    [disabled]="row().disabled"
+    tabindex="-1"
+    class="td-tree-node-expand-button"
+    (click)="onExpandClick($event)"
+    (keydown.enter)="onExpandClick($event)"
+    (contextmenu)="$event.stopPropagation()"
+    >{{ row().expanded ? 'expand_more' : 'chevron_right' }}</cv-icon>
+} @else {
+  <div class="td-tree-node-expand-spacer"></div>
+}
+
+@if (selectionMode() === selectionModes.MULTI) {
+  <div class="td-tree-node-checkbox" (contextmenu)="$event.stopPropagation()">
+    <cv-checkbox
+      [checked]="row().selected"
+      [indeterminate]="row().indeterminate"
+      [disabled]="row().disabled"
+      (change)="onSelectClick($event)"
+      (click)="$event.stopPropagation()"></cv-checkbox>
+  </div>
+}
+
+@if (display().showIcons && row().icon) {
+  <cv-icon
+    aria-hidden="true"
+    class="td-tree-node-icon"
+    [class.covalent-icon]="row().icon?.endsWith('_outlined')"
+    >{{ row().icon }}</cv-icon>
+}
+
+@if (row().placeholder) {
+  <span class="td-tree-node-placeholder" aria-hidden="true"></span>
+  <span class="td-tree-node-label td-tree-node-placeholder-text">
+    {{ row().label }}
+  </span>
+} @else {
+  <span
+    class="td-tree-node-label"
+    [innerHTML]="
+      row().label | treeHighlightMatch: filterQuery() : row().highlightRanges
+    "></span>
+}
+
+@if (row().loading) {
+  <cv-circular-progress
+    indeterminate
+    class="td-tree-node-spinner"
+    aria-label="Loading tree row"></cv-circular-progress>
+}
+
+<div class="td-tree-node-spacer"></div>
+
+@if (showContextButton() && !row().disabled) {
+  <cv-icon-button
+    class="td-tree-node-context-button"
+    icon="more_vert"
+    (click)="onContextButtonClick($event)">
+  </cv-icon-button>
+}

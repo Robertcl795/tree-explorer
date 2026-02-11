@@ -1,0 +1,17 @@
+<tree-explorer
+  [data]="data()"
+  [loading]="loading()"
+  [adapter]="adapter()"
+  [config]="config()"
+  [filterQuery]="filterQuery()"
+  (itemClick)="nodeClicked.emit($event)"
+  (itemDoubleClick)="nodeDoubleClicked.emit($event)"
+  (itemToggleExpand)="onToggleExpand($event)"
+  (selectionChange)="nodeSelected.emit($event.nodes)"
+  (contextMenuAction)="contextMenuAction.emit($event)"
+  (loadError)="loadError.emit($event)"
+  (dragStart)="dragStart.emit($event)"
+  (dragOver)="dragOver.emit($event)"
+  (drop)="drop.emit($event)"
+  (dragEnd)="dragEnd.emit($event)">
+</tree-explorer>

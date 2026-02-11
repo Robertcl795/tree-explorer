@@ -1,0 +1,178 @@
+<div class="td-tree-list">
+  @if (isRootLoading()) {
+    <cv-linear-progress
+      indeterminate
+      class="td-tree-loading-bar"
+      aria-label="Loading tree data"></cv-linear-progress>
+  }
+
+  @if (rootLoadError()) {
+    <div class="td-tree-empty-state error">
+      <cv-icon aria-hidden="true">error</cv-icon>
+      <span>{{ rootLoadError()!.message || 'Failed to load tree data' }}</span>
+    </div>
+  } @else if (isLoading() && visibleRows().length === 0) {
+    <div class="td-tree-empty-state loading">
+      <cv-circular-progress
+        indeterminate
+        class="td-tree-empty-loading-spinner"
+        aria-label="Loading tree data"></cv-circular-progress>
+      <span>Loading tree data...</span>
+    </div>
+  } @else {
+    @if (pinnedSectionVisible()) {
+      <div class="td-tree-pinned-section">
+        <div
+          class="td-tree-pinned-branch"
+          role="button"
+          tabindex="0"
+          [style.min-height.px]="itemSize()"
+          [attr.aria-expanded]="!pinnedCollapsed()"
+          (click)="togglePinnedCollapsed()"
+          (keydown.enter)="togglePinnedCollapsed($event)"
+          (keydown.space)="togglePinnedCollapsed($event)">
+          <cv-icon-button
+            class="td-tree-pinned-branch-caret"
+            tabindex="-1"
+            [attr.aria-label]="pinnedCollapsed() ? 'Expand pinned section' : 'Collapse pinned section'"
+            [icon]="pinnedCollapsed() ? 'chevron_right' : 'expand_more'"
+            (click)="togglePinnedCollapsed($event)"></cv-icon-button>
+          <cv-icon class="td-tree-pinned-branch-icon" aria-hidden="true">star</cv-icon>
+          <span class="td-tree-pinned-branch-label">{{ pinnedConfig().label }}</span>
+        </div>
+
+        @if (!pinnedCollapsed()) {
+          <div class="td-tree-pinned-children" role="group">
+            @if (pinnedLoading()) {
+              <div class="td-tree-pinned-state">Loading pinned items...</div>
+            }
+            @if (pinnedError()) {
+              <div class="td-tree-pinned-state error">Failed to sync pinned items</div>
+            }
+
+            <div
+              class="td-tree-pinned-list"
+              cdkDropList
+              [cdkDropListDisabled]="!pinnedDndEnabled()"
+              (cdkDropListDropped)="onPinnedDrop($event)">
+              @for (item of pinnedItems(); track item.entry.entryId) {
+                <div
+                  class="td-tree-pinned-item"
+                  cdkDrag
+                  [style.min-height.px]="itemSize()"
+                  [cdkDragDisabled]="!pinnedDndEnabled()">
+                  <a
+                    class="td-tree-pinned-link"
+                    href="#"
+                    [class.missing]="item.missing"
+                    [attr.aria-disabled]="item.missing ? true : null"
+                    [title]="item.missing ? 'Original node is unavailable' : 'Navigate to original node'"
+                    (click)="onPinnedClick($event, item)"
+                    (contextmenu)="openPinnedContextMenu($event, item)">
+                      <cv-icon class="td-tree-pinned-link-icon" aria-hidden="true">{{ item.icon || 'star' }}</cv-icon>
+                    <span class="td-tree-pinned-link-label">{{ item.label }}</span>
+                  </a>
+
+                  @if (hasPinnedContextActions(item)) {
+                    <cv-icon-button
+                      class="td-tree-pinned-context"
+                      icon="more_vert"
+                      (click)="openPinnedContextMenu($event, item)"></cv-icon-button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+    @if (visibleRows().length === 0) {
+      <div class="td-tree-empty-state">
+        <cv-icon aria-hidden="true">folder_open</cv-icon>
+        <span>No data available</span>
+      </div>
+    } @else {
+      @if (useVirtualScroll()) {
+        <cdk-virtual-scroll-viewport
+          #viewport
+          [itemSize]="itemSize()"
+          [minBufferPx]="300"
+          [maxBufferPx]="600"
+          class="td-tree-viewport">
+          <td-tree-item
+            *cdkVirtualFor="let row of visibleRows(); trackBy: trackByRowId"
+            [row]="row"
+            [display]="displayConfig()"
+            [itemSize]="itemSize()"
+            [selectionMode]="treeConfig().selection?.mode"
+            [showContextButton]="hasContextActions(row)"
+            [dragDropEnabled]="treeConfig().dragDrop === true"
+            [filterQuery]="filterQuery()"
+            (rowClick)="onRowClick($event, row)"
+            (rowDoubleClick)="onRowDoubleClick($event, row)"
+            (toggleExpand)="onToggleExpand($event, row)"
+            (toggleSelect)="onToggleSelect($event, row)"
+            (contextMenuRequest)="openContextMenu($event, row)"
+            (contextButtonRequest)="openContextMenu($event, row)"
+            (dragStart)="onDragStart($event, row)"
+            (dragOver)="onDragOver($event, row)"
+            (drop)="onDrop($event, row)"
+            (dragEnd)="onDragEnd($event, row)" />
+        </cdk-virtual-scroll-viewport>
+      } @else {
+        <div class="td-tree-viewport td-tree-viewport-static">
+          @for (row of visibleRows(); track trackByRowId($index, row)) {
+            <td-tree-item
+              [row]="row"
+              [display]="displayConfig()"
+              [itemSize]="itemSize()"
+              [selectionMode]="treeConfig().selection?.mode"
+              [showContextButton]="hasContextActions(row)"
+              [dragDropEnabled]="treeConfig().dragDrop === true"
+              [filterQuery]="filterQuery()"
+              (rowClick)="onRowClick($event, row)"
+              (rowDoubleClick)="onRowDoubleClick($event, row)"
+              (toggleExpand)="onToggleExpand($event, row)"
+              (toggleSelect)="onToggleSelect($event, row)"
+              (contextMenuRequest)="openContextMenu($event, row)"
+              (contextButtonRequest)="openContextMenu($event, row)"
+              (dragStart)="onDragStart($event, row)"
+              (dragOver)="onDragOver($event, row)"
+              (drop)="onDrop($event, row)"
+              (dragEnd)="onDragEnd($event, row)" />
+          }
+        </div>
+      }
+    }
+  }
+</div>
+
+<cv-menu
+  #contextMenu
+  fixed
+  menuCorner="START"
+  corner="BOTTOM_START"
+  [anchor]="currentContextButton()"
+  [open]="isContextMenuOpen()"
+  (closed)="onMenuClosed()"
+  role="menu"
+  aria-label="Context menu">
+  @for (action of getContextActions(); track action.id; let i = $index) {
+    <cv-list-item
+      [disabled]="isActionDisabled(action)"
+      [value]="i"
+      role="menuitem"
+      class="td-tree-ctx-menu-item"
+      (click)="onContextAction(action)"
+      (keydown.enter)="onContextAction(action)"
+      [attr.aria-label]="getActionLabel(action)">
+      @if (getActionIcon(action); as icon) {
+        <cv-icon slot="graphic" aria-hidden="true">{{ icon }}</cv-icon>
+      }
+      <span class="td-tree-ctx-menu-label">{{ getActionLabel(action) }}</span>
+    </cv-list-item>
+    @if (contextRow() && action.showDividerAfter?.(contextRow()!.data)) {
+      <cv-divider></cv-divider>
+    }
+  }
+</cv-menu>
