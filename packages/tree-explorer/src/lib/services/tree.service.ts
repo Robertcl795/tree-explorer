@@ -3,6 +3,7 @@ import { firstValueFrom, isObservable } from 'rxjs';
 import {
   DEFAULT_TREE_CONFIG,
   TreePageHint,
+  TreePagedNodeDebugState,
   PageRequest,
   TreeAdapter,
   TreeChildrenResult,
@@ -82,6 +83,8 @@ export class TreeStateService<TSource, T = TSource> {
   public readonly loading = computed(
     () => this.rootLoading() || this.engine.loadingIds.size > 0,
   );
+
+  public readonly rootLoadingState = computed(() => this.rootLoading());
 
   public readonly rootLoadError = computed(() => this.rootError());
 
@@ -590,7 +593,9 @@ export class TreeStateService<TSource, T = TSource> {
     }
   }
 
-  public getPagedNodeDebugState(parentId: string) {
+  public getPagedNodeDebugState(
+    parentId: string,
+  ): TreePagedNodeDebugState | undefined {
     this.stateVersion();
     return this.engine.getPagedNodeDebugState(parentId);
   }

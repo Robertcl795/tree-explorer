@@ -31,7 +31,6 @@ Monorepo for a library-grade tree system with a framework-agnostic core engine a
   - `setFilter`, `clearFilter`, `getFilteredFlatList`.
   - adapter hooks: `matches`, `getSearchText`, `highlightRanges`.
 - Virtualization-safe placeholders for paged children.
-- Angular wrapper (`@tree-explorer`) with CDK virtual scroll.
 - Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
 - Storybook coverage grouped by feature (`Basic Usage`, `Virtual scroll`, `Filtering`, `Pinned items`, `Errors & edge cases`).
 - Storybook edge-case coverage for initial load failures, page-aware retries, and pinned async navigation failures.
@@ -108,16 +107,15 @@ export class DemoComponent {
 Start here if you are new:
 
 1. [Architecture](./docs/architecture.md)
-2. [Next Steps](./docs/next-steps.md)
-3. [Filtering Review](./docs/filtering-review.md)
-4. [Pinned Items](./docs/pinned-items.md)
-5. [Theming](./docs/theming.md)
+2. [Filtering](./docs/filtering.md)
+3. [Pinned Items](./docs/pinned-items.md)
+4. [Theming](./docs/theming.md)
 
 ### Architecture and Design
 
 - [Architecture](./docs/architecture.md)
 - [TreeEngine Audit](./docs/tree-engine-audit.md)
-- [Filtering Review](./docs/filtering-review.md)
+- [Filtering](./docs/filtering.md)
 - [Page-Aware Virtual Scroll](./docs/page-aware-virtual-scroll.md)
 - [Pinned Items](./docs/pinned-items.md)
 - [Theming](./docs/theming.md)
@@ -125,7 +123,6 @@ Start here if you are new:
 ### Quality and Planning
 
 - [Quality Report](./docs/quality-report.md)
-- [Next Steps](./docs/next-steps.md)
 
 ### Workspace and Operations
 

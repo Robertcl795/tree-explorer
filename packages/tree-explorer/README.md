@@ -10,9 +10,9 @@ Baseline: Angular `19.2.x` in this workspace.
 - Core engine: [@tree-core README](../tree-core/README.md)
 - Lit wrapper POC: [@lit-tree-explorer README](../lit-tree-explorer/README.md)
 - Architecture: [docs/architecture.md](../../docs/architecture.md)
+- Filtering: [docs/filtering.md](../../docs/filtering.md)
 - Pinned items: [docs/pinned-items.md](../../docs/pinned-items.md)
 - Theming: [docs/theming.md](../../docs/theming.md)
-- Next steps: [docs/next-steps.md](../../docs/next-steps.md)
 
 ## Architectural Role
 

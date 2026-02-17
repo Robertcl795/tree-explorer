@@ -4,6 +4,7 @@ import {
   TreeFilterMode,
   TreeFilterQuery,
   TreeFilteringConfig,
+  TreeMatchRange,
 } from '../types/tree-filter';
 import { TreeConfig } from '../types/tree-config';
 import { TreeId, TreeNode, TreeRowViewModel } from '../types/tree-node';
@@ -156,7 +157,7 @@ export function resolveHighlightRanges<TSource, T>(
   adapter: TreeAdapter<TSource, T>,
   label: string,
   query: TreeFilterQuery,
-) {
+): TreeMatchRange[] | undefined {
   if (adapter.highlightRanges) {
     return adapter.highlightRanges(label, query);
   }

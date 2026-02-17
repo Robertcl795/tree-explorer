@@ -8,7 +8,7 @@ Framework-agnostic engine and contracts for tree rendering, selection, lazy load
 - Angular wrapper: [@tree-explorer README](../tree-explorer/README.md)
 - Lit wrapper POC: [@lit-tree-explorer README](../lit-tree-explorer/README.md)
 - Architecture: [docs/architecture.md](../../docs/architecture.md)
-- Filtering review: [docs/filtering-review.md](../../docs/filtering-review.md)
+- Filtering: [docs/filtering.md](../../docs/filtering.md)
 - Pinned items: [docs/pinned-items.md](../../docs/pinned-items.md)
 
 ## Design Intent
