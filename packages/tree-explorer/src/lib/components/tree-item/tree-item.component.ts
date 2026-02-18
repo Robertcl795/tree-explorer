@@ -1,17 +1,19 @@
 import { CommonModule } from '@angular/common';
+import '@covalent/components/circular-progress';
+import '@covalent/components/checkbox';
+import '@covalent/components/icon';
+import '@covalent/components/icon-button';
 import {
   ChangeDetectionStrategy,
   Component,
+  CUSTOM_ELEMENTS_SCHEMA,
   computed,
   input,
   output,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   SELECTION_MODES,
+  TREE_DENSITY,
   TreeFilterInput,
   TreeDisplayConfig,
   TreeRowViewModel,
@@ -23,20 +25,46 @@ import { TreeHighlightMatchPipe } from '../../pipes';
   standalone: true,
   imports: [
     CommonModule,
-    MatIconModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatProgressSpinnerModule,
     TreeHighlightMatchPipe,
   ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './tree-item.component.html',
   styleUrls: ['./tree-item.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
+    class: 'td-tree-node',
     '[style.--tree-row-height.px]': 'itemSize()',
+    '[class.td-tree-node-compact]':
+      'display().density === treeDensity.COMPACT',
+    '[class.td-tree-node-disabled]': 'row().disabled',
+    '[class.td-tree-node-loading]': 'row().loading',
+    '[class.td-tree-node-selected]': 'row().selected || row().indeterminate',
+    '[class.td-tree-node-error]': 'row().error',
+    '[class.td-tree-node-placeholder]': 'row().placeholder',
+    '[attr.role]': '"treeitem"',
+    '[attr.aria-level]': 'row().level + 1',
+    '[attr.aria-expanded]': 'row().isLeaf ? null : row().expanded',
+    '[attr.aria-selected]': 'row().selected',
+    '[attr.aria-indeterminate]': 'row().indeterminate',
+    '[attr.aria-disabled]': 'row().disabled',
+    '[attr.data-node-id]': 'row().id',
+    '[attr.tabindex]': 'row().disabled ? -1 : 0',
+    '[style.padding-left.px]': 'row().level * display().indentPx + 6',
+    '[attr.draggable]':
+      'dragDropEnabled() && !row().disabled ? true : null',
+    '(click)': 'rowClick.emit($event)',
+    '(dblclick)': 'rowDoubleClick.emit($event)',
+    '(contextmenu)': 'onContextMenu($event)',
+    '(dragstart)': 'onDragStart($event)',
+    '(dragover)': 'onDragOver($event)',
+    '(drop)': 'onDrop($event)',
+    '(dragend)': 'onDragEnd($event)',
   },
 })
 export class TreeItemComponent<T = any> {
+  public readonly treeDensity = TREE_DENSITY;
+  public readonly selectionModes = SELECTION_MODES;
+
   public readonly row = input.required<TreeRowViewModel<T>>();
   public readonly display = input.required<TreeDisplayConfig>();
   public readonly itemSize = input(32);
@@ -64,7 +92,7 @@ export class TreeItemComponent<T = any> {
     () => this.selectionMode() === SELECTION_MODES.MULTI,
   );
 
-  public onExpandClick(event: MouseEvent): void {
+  public onExpandClick(event: any): void {
     event.preventDefault();
     event.stopPropagation();
     if (this.row().disabled || this.row().isLeaf) {

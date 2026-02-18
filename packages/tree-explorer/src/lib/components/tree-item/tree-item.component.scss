@@ -60,7 +60,7 @@
     align-items: center;
     justify-content: center;
 
-    mat-icon {
+    cv-icon {
       color: var(--tree-icon-fg);
       font-size: var(--tree-icon-size);
       width: var(--tree-icon-size);
@@ -117,6 +117,8 @@
   .row-spinner {
     position: absolute;
     left: 8px;
+    width: 16px;
+    height: 16px;
   }
 
   .tree-item--spacer {
@@ -130,7 +132,7 @@
     opacity: 0;
     transition: opacity 0.2s;
 
-    mat-icon {
+    cv-icon {
       color: var(--tree-icon-fg);
       font-size: var(--tree-icon-size);
       width: var(--tree-icon-size);
@@ -155,7 +157,7 @@
       background-color: var(--tree-hover-muted-bg);
     }
 
-    mat-checkbox.mat-mdc-checkbox-disabled {
+    cv-checkbox[disabled] {
       opacity: var(--tree-disabled-opacity);
       cursor: not-allowed;
     }

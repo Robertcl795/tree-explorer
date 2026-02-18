@@ -1,4 +1,5 @@
 import type { Preview } from '@storybook/angular';
+import '@covalent/components';
 
 if (typeof document !== 'undefined') {
   const link = document.createElement('link');

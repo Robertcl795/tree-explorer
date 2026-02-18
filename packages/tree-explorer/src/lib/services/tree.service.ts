@@ -3,6 +3,7 @@ import { firstValueFrom, isObservable } from 'rxjs';
 import {
   DEFAULT_TREE_CONFIG,
   TreePageHint,
+  TreePagedNodeDebugState,
   PageRequest,
   TreeAdapter,
   TreeChildrenResult,
@@ -82,6 +83,8 @@ export class TreeStateService<TSource, T = TSource> {
   public readonly loading = computed(
     () => this.rootLoading() || this.engine.loadingIds.size > 0,
   );
+
+  public readonly rootLoadingState = computed(() => this.rootLoading());
 
   public readonly rootLoadError = computed(() => this.rootError());
 
@@ -590,7 +593,9 @@ export class TreeStateService<TSource, T = TSource> {
     }
   }
 
-  public getPagedNodeDebugState(parentId: string) {
+  public getPagedNodeDebugState(
+    parentId: string,
+  ): TreePagedNodeDebugState | undefined {
     this.stateVersion();
     return this.engine.getPagedNodeDebugState(parentId);
   }
@@ -806,13 +811,24 @@ export class TreeStateService<TSource, T = TSource> {
         parent.level + 1,
       );
 
-      this.engine.applyPagedChildren(
-        parentId,
-        request,
-        graph.directChildren,
-        totalCount,
-        graph.allNodes,
-      );
+      const shouldDisablePaging =
+        request.pageIndex === 0 && totalCount <= resolved.items.length;
+
+      if (shouldDisablePaging) {
+        this.engine.setChildrenLoaded(
+          parentId,
+          graph.directChildren,
+          graph.allNodes,
+        );
+      } else {
+        this.engine.applyPagedChildren(
+          parentId,
+          request,
+          graph.directChildren,
+          totalCount,
+          graph.allNodes,
+        );
+      }
       this.engine.clearNodeError(parentId);
       this.reapplyActiveFilter(adapter);
       this.bumpVersion();
@@ -839,11 +855,14 @@ export class TreeStateService<TSource, T = TSource> {
     totalCount: number | undefined,
     itemsCount: number,
   ): number {
+    const debug = this.engine.getPagedNodeDebugState(parentId);
     if (typeof totalCount === 'number' && Number.isFinite(totalCount)) {
+      if (debug && typeof debug.totalCount === 'number') {
+        return Math.max(debug.totalCount, totalCount);
+      }
       return totalCount;
     }
 
-    const debug = this.engine.getPagedNodeDebugState(parentId);
     if (debug && typeof debug.totalCount === 'number') {
       return debug.totalCount;
     }

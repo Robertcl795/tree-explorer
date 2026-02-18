@@ -3,16 +3,13 @@
  * This module provides compatibility with traditional Angular module architecture
  */
 
-import { NgModule } from '@angular/core';
+import { CUSTOM_ELEMENTS_SCHEMA, NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatMenuModule } from '@angular/material/menu';
 
 // Import standalone components
+import { AsyncTreeComponent } from './components/async-tree/async-tree.component';
+import { DataExplorerCompatComponent } from './components/data-explorer-compat/data-explorer-compat.component';
 import { TreeExplorerComponent } from './components/tree-explorer/tree-explorer.component';
 import { TreeItemComponent } from './components/tree-item/tree-item.component';
 
@@ -40,17 +37,16 @@ import { TREE_CONFIG } from './tokens/tree.configs';
   imports: [
     CommonModule,
     ScrollingModule,
-    MatProgressBarModule,
-    MatIconModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatMenuModule,
     // Import standalone components
+    AsyncTreeComponent,
+    DataExplorerCompatComponent,
     TreeExplorerComponent,
     TreeItemComponent,
   ],
   exports: [
     // Export components for use in templates
+    AsyncTreeComponent,
+    DataExplorerCompatComponent,
     TreeExplorerComponent,
     TreeItemComponent,
   ],
@@ -58,6 +54,7 @@ import { TREE_CONFIG } from './tokens/tree.configs';
     // Provide services
     TreeStateService,
   ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class TreeExplorerModule {
   /**

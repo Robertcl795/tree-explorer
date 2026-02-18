@@ -10,11 +10,12 @@ const config: StorybookConfig = {
   ],
   framework: {
     name: '@storybook/angular',
-    options: {},
+    options: {
+      schemaLocation: '@angular/core',
+    },
   },
   managerHead: (head) => `
     ${head}
-    <link rel="stylesheet" href="https://unpkg.com/@angular/material@latest/prebuilt-themes/indigo-pink.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   `,

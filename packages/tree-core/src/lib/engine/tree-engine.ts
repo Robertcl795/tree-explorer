@@ -1,4 +1,4 @@
-import { getMaxDepth } from '../utils/tree-utils';
+import { FlattenedNode, getMaxDepth } from '../utils/tree-utils';
 import {
   SELECTION_MODES,
   SelectionMode,
@@ -48,6 +48,7 @@ import {
 import {
   TreePagedNodeDebugState,
   TreePagedNodeState,
+  TreeEngineProjection,
   TreeProjectionCache,
   TreeState,
   TreeStats,
@@ -547,7 +548,7 @@ export class TreeEngine<T> {
     return changed;
   }
 
-  private getFlattenedNodes() {
+  private getFlattenedNodes(): FlattenedNode[] {
     return getFlattenedNodesCached(
       this.state.nodes,
       this.state.expanded,
@@ -558,7 +559,7 @@ export class TreeEngine<T> {
   private getProjection<TSource>(
     adapter: TreeAdapter<TSource, T>,
     config?: TreeConfig<T>,
-  ) {
+  ): TreeEngineProjection<T> {
     const activeFilterFingerprint = filterFingerprint(this.filterQuery);
     const activeFilterConfigFingerprint = fingerprintFilterConfig(this.filterConfig);
     const defaultIcon = config?.defaultIcon;

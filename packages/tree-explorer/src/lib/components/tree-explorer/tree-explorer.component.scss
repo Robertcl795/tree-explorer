@@ -61,7 +61,7 @@
     height: 100%;
   }
 
-  .empty-state mat-icon {
+  .empty-state cv-icon {
     font-size: var(--tree-empty-icon-size);
     width: var(--tree-empty-icon-size);
     height: var(--tree-empty-icon-size);
@@ -198,10 +198,16 @@
     flex-shrink: 0;
   }
 
-  .context-menu-anchor {
-    position: fixed;
-    opacity: 0;
-    pointer-events: none;
-    z-index: 1000;
+  .empty-loading-spinner {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tree-context-menu-item {
+    width: 240px;
+  }
+
+  .tree-context-menu-label {
+    flex: 1;
   }
 }
