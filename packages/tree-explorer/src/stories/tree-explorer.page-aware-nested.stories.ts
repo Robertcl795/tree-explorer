@@ -14,15 +14,34 @@ import {
   TreeAdapter,
   TreeConfig,
   TreeContextAction,
+  TreeNode,
+  TreePinnedEntry,
+  TreeRowViewModel,
   TREE_DENSITY,
   VIRTUALIZATION_MODES,
 } from '@tree-core';
-import {
-  TreeContextMenuEvent,
-  TreeDragEvent,
-  TreeExplorerComponent,
-  TreeNodeEvent,
-} from '../public-api';
+import { TreeExplorerComponent } from '../public-api';
+
+interface TreeNodeEvent<T> {
+  node: TreeNode<T>;
+  row: TreeRowViewModel<T>;
+  event: Event;
+}
+
+interface TreeContextMenuEvent<T> {
+  node: TreeNode<T>;
+  row: TreeRowViewModel<T>;
+  pinnedEntry?: TreePinnedEntry;
+  target?: 'node' | 'pinned';
+  action: TreeContextAction<T>;
+  event: Event;
+}
+
+interface TreeDragEvent<T> {
+  node: TreeNode<T>;
+  row: TreeRowViewModel<T>;
+  event: DragEvent;
+}
 
 type UserNode = {
   id: string;

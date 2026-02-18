@@ -81,3 +81,42 @@ export const DEFAULT_TREE_CONFIG: Readonly<TreeConfig<unknown>> = Object.freeze(
   ariaLabel: 'Tree',
   trackingTag: 'tree',
 });
+
+export function mergeTreeConfig<T>(
+  config: Partial<TreeConfig<T>> = {},
+  defaults: TreeConfig<T> = DEFAULT_TREE_CONFIG as TreeConfig<T>,
+): TreeConfig<T> {
+  const defaultDisplay = defaults.display ?? {
+    indentPx: 24,
+    density: TREE_DENSITY.NORMAL,
+    showIcons: true,
+  };
+  const defaultVirtualization = defaults.virtualization ?? {
+    mode: VIRTUALIZATION_MODES.AUTO,
+    itemSize: 48,
+  };
+  const defaultFiltering = defaults.filtering ?? DEFAULT_TREE_FILTERING_CONFIG;
+
+  return {
+    ...defaults,
+    ...config,
+    display: {
+      indentPx: config.display?.indentPx ?? defaultDisplay.indentPx,
+      density: config.display?.density ?? defaultDisplay.density,
+      showIcons: config.display?.showIcons ?? defaultDisplay.showIcons,
+    },
+    selection: config.selection ?? defaults.selection,
+    virtualization: {
+      mode: config.virtualization?.mode ?? defaultVirtualization.mode,
+      itemSize: config.virtualization?.itemSize ?? defaultVirtualization.itemSize,
+    },
+    filtering: {
+      ...defaultFiltering,
+      ...config.filtering,
+    },
+    actions: config.actions ?? defaults.actions,
+    dragDrop: config.dragDrop ?? defaults.dragDrop,
+    pinned: config.pinned ?? defaults.pinned,
+    onError: config.onError ?? defaults.onError,
+  };
+}

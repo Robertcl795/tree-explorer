@@ -2,26 +2,27 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom, isObservable } from 'rxjs';
 import {
   DEFAULT_TREE_CONFIG,
-  TreePageHint,
-  TreePagedNodeDebugState,
+  mergeTreeConfig,
   PageRequest,
   TreeAdapter,
   TreeChildrenResult,
   TreeConfig,
-  TreeEngine,
   TreeFilterInput,
   TreeLoadError,
   TreeNode,
+  TreePageHint,
   TreePinnedConfig,
   TreePinnedEntry,
+  TreePinnedItemView,
   TreePinnedStore,
   TreePinnedStoreResult,
   TreeResolvePathResult,
   TreeRowViewModel,
-  mapSourcesToNodeGraph,
-} from '@tree-core';
-import { TREE_CONFIG } from '../tokens/tree.configs';
-import { TreePinnedItemView } from '../types';
+} from '../types';
+import { TreeEngine } from '../engine/tree-engine';
+import { TreePagedNodeDebugState } from '../engine/types';
+import { TREE_CONFIG } from '../tree.configs';
+import { mapSourcesToNodeGraph } from '../utils/tree-adapter.utils';
 
 interface ResolvedLoadChildrenResult<TSource> {
   items: TSource[];
@@ -162,25 +163,13 @@ export class TreeStateService<TSource, T = TSource> {
   constructor() {
     const injectedConfig = inject(TREE_CONFIG, { optional: true });
     if (injectedConfig) {
-      const merged = {
-        ...(DEFAULT_TREE_CONFIG as TreeConfig<T>),
-        ...injectedConfig,
-        display: {
-          ...(DEFAULT_TREE_CONFIG.display as TreeConfig<T>['display']),
-          ...injectedConfig.display,
-        },
-        virtualization: {
-          ...(DEFAULT_TREE_CONFIG.virtualization as TreeConfig<T>['virtualization']),
-          ...injectedConfig.virtualization,
-        },
-        filtering: {
-          ...(DEFAULT_TREE_CONFIG.filtering as TreeConfig<T>['filtering']),
-          ...injectedConfig.filtering,
-        },
-      };
-      this.configRef.set(merged as TreeConfig<T>);
-      this.engine.configure(merged as TreeConfig<T>);
-      this.syncPinnedState(this.resolvePinnedConfig((merged as TreeConfig<T>).pinned));
+      const merged = mergeTreeConfig(
+        injectedConfig,
+        DEFAULT_TREE_CONFIG as TreeConfig<T>,
+      );
+      this.configRef.set(merged);
+      this.engine.configure(merged);
+      this.syncPinnedState(this.resolvePinnedConfig(merged.pinned));
     }
   }
 
@@ -191,26 +180,11 @@ export class TreeStateService<TSource, T = TSource> {
   }
 
   public setConfig(config: TreeConfig<T>): void {
-    const merged = {
-      ...(DEFAULT_TREE_CONFIG as TreeConfig<T>),
-      ...config,
-      display: {
-        ...(DEFAULT_TREE_CONFIG.display as TreeConfig<T>['display']),
-        ...config.display,
-      },
-      virtualization: {
-        ...(DEFAULT_TREE_CONFIG.virtualization as TreeConfig<T>['virtualization']),
-        ...config.virtualization,
-      },
-      filtering: {
-        ...(DEFAULT_TREE_CONFIG.filtering as TreeConfig<T>['filtering']),
-        ...config.filtering,
-      },
-    };
-    this.configRef.set(merged as TreeConfig<T>);
-    this.engine.configure(merged as TreeConfig<T>);
+    const merged = mergeTreeConfig(config, DEFAULT_TREE_CONFIG as TreeConfig<T>);
+    this.configRef.set(merged);
+    this.engine.configure(merged);
     this.reapplyActiveFilter();
-    this.syncPinnedState(this.resolvePinnedConfig((merged as TreeConfig<T>).pinned));
+    this.syncPinnedState(this.resolvePinnedConfig(merged.pinned));
     this.bumpVersion();
   }
 

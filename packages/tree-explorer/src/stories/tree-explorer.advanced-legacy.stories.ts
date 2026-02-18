@@ -1,10 +1,11 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
+  ObjectTreeAdapter,
   TREE_DENSITY,
   TreeConfig,
   VIRTUALIZATION_MODES,
 } from '@tree-core';
-import { ObjectTreeAdapter, TreeExplorerComponent } from '../public-api';
+import { TreeExplorerComponent } from '../public-api';
 import { createTreeStory } from './tree-explorer.utils';
 
 type LegacyNode = {

@@ -1,12 +1,5 @@
-/**
- * @fileoverview Tree Explorer Adapters
- */
+import { TreeAdapter } from '../types/tree-adapter';
 
-import { TreeAdapter } from '@tree-core';
-
-/**
- * Generic adapter for simple object trees with `id`, `name`, and `children`.
- */
 export class ObjectTreeAdapter<T extends { id: string; name?: string; children?: T[] }>
   implements TreeAdapter<T, T>
 {
@@ -22,6 +15,3 @@ export class ObjectTreeAdapter<T extends { id: string; name?: string; children?:
     return data.children;
   }
 }
-
-export type { TreeAdapter } from '@tree-core';
-

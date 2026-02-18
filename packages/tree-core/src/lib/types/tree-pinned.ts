@@ -36,6 +36,15 @@ export interface TreePinnedRenderContext<T> {
   row?: TreeRowViewModel<T>;
 }
 
+export interface TreePinnedItemView<T> {
+  entry: TreePinnedEntry;
+  node: TreeNode<T> | null;
+  row: TreeRowViewModel<T> | null;
+  label: string;
+  icon?: string | null;
+  missing: boolean;
+}
+
 export type TreePinnedStoreResult<TResult> = Promise<TResult> | Observable<TResult>;
 
 export interface TreePinnedStore<T> {

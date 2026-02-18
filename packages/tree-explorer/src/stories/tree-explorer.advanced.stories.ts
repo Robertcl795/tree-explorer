@@ -4,6 +4,7 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import {
+  ObjectTreeAdapter,
   SELECTION_MODES,
   TREE_DENSITY,
   TreeAdapter,
@@ -11,7 +12,7 @@ import {
   TreeContextAction,
   VIRTUALIZATION_MODES,
 } from '@tree-core';
-import { ObjectTreeAdapter, TreeExplorerComponent } from '../public-api';
+import { TreeExplorerComponent } from '../public-api';
 import { createTreeStory } from './tree-explorer.utils';
 
 type BasicNode = {

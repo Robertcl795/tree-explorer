@@ -24,7 +24,7 @@ import {
   viewChild,
 } from '@angular/core';
 import {
-  DEFAULT_TREE_CONFIG,
+  mergeTreeConfig,
   SELECTION_MODES,
   TREE_DENSITY,
   VIRTUALIZATION_MODES,
@@ -36,18 +36,37 @@ import {
   TreeLoadError,
   TreeNode,
   TreePinnedEntry,
+  TreePinnedItemView,
   TreePinnedNodeContext,
   TreeRowViewModel,
+  TreeStateService,
 } from '@tree-core';
-import {
-  TreeContextMenuEvent,
-  TreeDragEvent,
-  TreeNodeEvent,
-  TreePinnedItemView,
-  TreeSelectionEvent,
-} from '../../types';
-import { TreeStateService } from '../../services/tree.service';
 import { TreeItemComponent } from '../tree-item/tree-item.component';
+
+interface TreeNodeEvent<T> {
+  node: TreeNode<T>;
+  row: TreeRowViewModel<T>;
+  event: Event;
+}
+
+interface TreeContextMenuEvent<T> {
+  node: TreeNode<T>;
+  row: TreeRowViewModel<T>;
+  pinnedEntry?: TreePinnedEntry;
+  target?: 'node' | 'pinned';
+  action: TreeContextAction<T>;
+  event: Event;
+}
+
+interface TreeSelectionEvent<T> {
+  nodes: TreeNode<T>[];
+}
+
+interface TreeDragEvent<T> {
+  node: TreeNode<T>;
+  row: TreeRowViewModel<T>;
+  event: DragEvent;
+}
 
 @Component({
   selector: 'tree-explorer',
@@ -62,7 +81,7 @@ import { TreeItemComponent } from '../tree-item/tree-item.component';
   providers: [TreeStateService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tree-explorer.component.html',
-  styleUrls: ['../../styles/tree-theme.css', './tree-explorer.component.scss'],
+  styleUrls: ['./tree-explorer.component.scss'],
   host: {
     class: 'td-tree',
     '[attr.role]': '"tree"',
@@ -108,9 +127,7 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public readonly currentContextButton = signal<HTMLElement | null>(null);
   public readonly isContextMenuOpen = signal(false);
 
-  public readonly treeConfig = computed(() =>
-    this.mergeConfig(this.config()),
-  );
+  public readonly treeConfig = computed(() => mergeTreeConfig(this.config()));
 
   public readonly displayConfig = computed(() => ({
     indentPx: this.treeConfig().display?.indentPx ?? 24,
@@ -722,40 +739,4 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     });
   }
 
-  private mergeConfig(config: Partial<TreeConfig<T>>): TreeConfig<T> {
-    const defaults = DEFAULT_TREE_CONFIG as TreeConfig<T>;
-    const defaultDisplay = defaults.display ?? {
-      indentPx: 24,
-      density: DEFAULT_TREE_CONFIG.display!.density,
-      showIcons: true,
-    };
-    const defaultVirtualization = defaults.virtualization ?? {
-      mode: DEFAULT_TREE_CONFIG.virtualization!.mode,
-      itemSize: DEFAULT_TREE_CONFIG.virtualization!.itemSize,
-    };
-    const defaultFiltering = defaults.filtering ?? DEFAULT_TREE_CONFIG.filtering;
-
-    return {
-      ...defaults,
-      ...config,
-      display: {
-        indentPx: config.display?.indentPx ?? defaultDisplay.indentPx,
-        density: config.display?.density ?? defaultDisplay.density,
-        showIcons: config.display?.showIcons ?? defaultDisplay.showIcons,
-      },
-      selection: config.selection ?? defaults.selection,
-      virtualization: {
-        mode: config.virtualization?.mode ?? defaultVirtualization.mode,
-        itemSize: config.virtualization?.itemSize ?? defaultVirtualization.itemSize,
-      },
-      filtering: {
-        ...defaultFiltering,
-        ...config.filtering,
-      },
-      actions: config.actions ?? defaults.actions,
-      dragDrop: config.dragDrop ?? defaults.dragDrop,
-      pinned: config.pinned ?? defaults.pinned,
-      onError: config.onError ?? defaults.onError,
-    };
-  }
 }
