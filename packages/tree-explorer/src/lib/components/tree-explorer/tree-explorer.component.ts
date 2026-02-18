@@ -4,9 +4,17 @@ import {
   DragDropModule,
 } from '@angular/cdk/drag-drop';
 import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import '@covalent/components/circular-progress';
+import '@covalent/components/divider';
+import '@covalent/components/icon';
+import '@covalent/components/icon-button';
+import '@covalent/components/linear-progress';
+import '@covalent/components/list-item';
+import '@covalent/components/menu';
 import {
   ChangeDetectionStrategy,
   Component,
+  CUSTOM_ELEMENTS_SCHEMA,
   computed,
   effect,
   inject,
@@ -15,16 +23,11 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
   DEFAULT_TREE_CONFIG,
   SELECTION_MODES,
   TREE_DENSITY,
+  VIRTUALIZATION_MODES,
   TreeAdapter,
   TreeChildrenResult,
   TreeConfig,
@@ -53,22 +56,29 @@ import { TreeItemComponent } from '../tree-item/tree-item.component';
     CommonModule,
     DragDropModule,
     ScrollingModule,
-    MatProgressBarModule,
-    MatButtonModule,
-    MatDividerModule,
-    MatIconModule,
-    MatMenuModule,
-    MatProgressSpinnerModule,
     TreeItemComponent,
   ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [TreeStateService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tree-explorer.component.html',
   styleUrls: ['../../styles/tree-theme.css', './tree-explorer.component.scss'],
+  host: {
+    class: 'td-tree',
+    '[attr.role]': '"tree"',
+    '[attr.aria-label]': 'treeConfig().ariaLabel',
+    '[attr.tabindex]': '0',
+    '[attr.data-density]': 'displayConfig().density',
+  },
 })
 export class TreeExplorerComponent<TSource, T = TSource> {
+  private static readonly PIN_ACTION_ID = '__tree_pin__';
+  private static readonly UNPIN_ACTION_ID = '__tree_unpin__';
+  private lastRenderedRange: { start: number; end: number } | null = null;
+  private pendingRange: { start: number; end: number } | null = null;
+  private rangeRafId: number | null = null;
+
   public readonly viewport = viewChild<CdkVirtualScrollViewport>('viewport');
-  public readonly contextMenuTrigger = viewChild(MatMenuTrigger);
 
   public readonly data = input<TreeChildrenResult<TSource> | TSource[]>([]);
   public readonly loading = input(false);
@@ -95,8 +105,8 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public readonly contextPinnedItem = signal<TreePinnedItemView<T> | null>(null);
   public readonly contextTarget = signal<'node' | 'pinned' | null>(null);
   public readonly contextEvent = signal<MouseEvent | null>(null);
-  public readonly menuX = signal(0);
-  public readonly menuY = signal(0);
+  public readonly currentContextButton = signal<HTMLElement | null>(null);
+  public readonly isContextMenuOpen = signal(false);
 
   public readonly treeConfig = computed(() =>
     this.mergeConfig(this.config()),
@@ -112,8 +122,23 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     () => this.treeConfig().virtualization?.itemSize ?? 48,
   );
 
+  public readonly useVirtualScroll = computed(() => {
+    const mode = this.treeConfig().virtualization?.mode ?? VIRTUALIZATION_MODES.AUTO;
+    if (mode !== VIRTUALIZATION_MODES.AUTO) {
+      return true;
+    }
+
+    const rows = this.visibleRows();
+    const hasPlaceholders = rows.some((row) => row.placeholder);
+    return hasPlaceholders || rows.length > 200;
+  });
+
   public readonly isLoading = computed(
     () => this.loading() || this.treeService.loading(),
+  );
+
+  public readonly isRootLoading = computed(
+    () => this.treeService.rootLoadingState(),
   );
 
   public readonly rootLoadError = computed(
@@ -134,9 +159,6 @@ export class TreeExplorerComponent<TSource, T = TSource> {
   public readonly pinnedDndEnabled = computed(
     () => this.pinnedConfig().enabled && this.pinnedConfig().dndEnabled,
   );
-
-  private static readonly PIN_ACTION_ID = '__tree_pin__';
-  private static readonly UNPIN_ACTION_ID = '__tree_unpin__';
 
   constructor() {
     effect(() => {
@@ -181,34 +203,70 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     });
 
     effect(() => {
-      this.visibleRows();
       const viewport = this.viewport();
-      if (!viewport) {
+      if (!viewport || !this.useVirtualScroll()) {
         return;
       }
+      this.itemSize();
       viewport.checkViewportSize();
-      const range = viewport.getRenderedRange();
-      this.treeService.ensureRangeLoaded(range.start, range.end);
     });
 
     effect((onCleanup) => {
       const viewport = this.viewport();
-      if (!viewport) {
+      if (!viewport || !this.useVirtualScroll()) {
         return;
       }
 
-      const onRangeChange = () => {
-        const range = viewport.getRenderedRange();
-        this.treeService.ensureRangeLoaded(range.start, range.end);
-      };
-
-      const scrolledSubscription = viewport.scrolledIndexChange.subscribe(onRangeChange);
       const renderedSubscription = viewport.renderedRangeStream.subscribe((range) => {
-        this.treeService.ensureRangeLoaded(range.start, range.end);
+        if (
+          this.lastRenderedRange &&
+          this.lastRenderedRange.start === range.start &&
+          this.lastRenderedRange.end === range.end
+        ) {
+          return;
+        }
+        this.lastRenderedRange = { start: range.start, end: range.end };
+        this.pendingRange = { start: range.start, end: range.end };
+
+        const rows = this.visibleRows();
+        const sliceEnd = Math.min(range.end, rows.length);
+        const hasPlaceholder = rows
+          .slice(range.start, sliceEnd)
+          .some((row) => row.placeholder);
+        if (!hasPlaceholder) {
+          return;
+        }
+
+        if (this.rangeRafId !== null) {
+          return;
+        }
+
+        const requestFrame = globalThis.requestAnimationFrame;
+        if (typeof requestFrame !== 'function') {
+          const pending = this.pendingRange;
+          if (pending) {
+            this.treeService.ensureRangeLoaded(pending.start, pending.end);
+          }
+          return;
+        }
+
+        this.rangeRafId = requestFrame(() => {
+          this.rangeRafId = null;
+          const pending = this.pendingRange;
+          if (pending) {
+            this.treeService.ensureRangeLoaded(pending.start, pending.end);
+          }
+        });
       });
 
       onCleanup(() => {
-        scrolledSubscription.unsubscribe();
+        if (this.rangeRafId !== null) {
+          const cancelFrame = globalThis.cancelAnimationFrame;
+          if (typeof cancelFrame === 'function') {
+            cancelFrame(this.rangeRafId);
+          }
+          this.rangeRafId = null;
+        }
         renderedSubscription.unsubscribe();
       });
     });
@@ -380,10 +438,10 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     this.contextPinnedItem.set(null);
     this.contextTarget.set('node');
     this.contextEvent.set(event);
-    this.menuX.set(event.clientX);
-    this.menuY.set(event.clientY);
-
-    queueMicrotask(() => this.contextMenuTrigger()?.openMenu());
+    this.currentContextButton.set(
+      (event.currentTarget ?? event.target) as HTMLElement,
+    );
+    this.isContextMenuOpen.set(true);
   }
 
   public openPinnedContextMenu(
@@ -402,10 +460,10 @@ export class TreeExplorerComponent<TSource, T = TSource> {
     this.contextNode.set(item.node);
     this.contextRow.set(item.row);
     this.contextEvent.set(event);
-    this.menuX.set(event.clientX);
-    this.menuY.set(event.clientY);
-
-    queueMicrotask(() => this.contextMenuTrigger()?.openMenu());
+    this.currentContextButton.set(
+      (event.currentTarget ?? event.target) as HTMLElement,
+    );
+    this.isContextMenuOpen.set(true);
   }
 
   public onContextAction(action: TreeContextAction<T>): void {
@@ -445,16 +503,18 @@ export class TreeExplorerComponent<TSource, T = TSource> {
         });
       }
     } finally {
-      this.contextMenuTrigger()?.closeMenu();
+      this.onMenuClosed();
     }
   }
 
   public onMenuClosed(): void {
+    this.isContextMenuOpen.set(false);
     this.contextRow.set(null);
     this.contextNode.set(null);
     this.contextPinnedItem.set(null);
     this.contextTarget.set(null);
     this.contextEvent.set(null);
+    this.currentContextButton.set(null);
   }
 
   public isActionDisabled(action: TreeContextAction<T>): boolean {

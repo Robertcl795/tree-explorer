@@ -811,13 +811,24 @@ export class TreeStateService<TSource, T = TSource> {
         parent.level + 1,
       );
 
-      this.engine.applyPagedChildren(
-        parentId,
-        request,
-        graph.directChildren,
-        totalCount,
-        graph.allNodes,
-      );
+      const shouldDisablePaging =
+        request.pageIndex === 0 && totalCount <= resolved.items.length;
+
+      if (shouldDisablePaging) {
+        this.engine.setChildrenLoaded(
+          parentId,
+          graph.directChildren,
+          graph.allNodes,
+        );
+      } else {
+        this.engine.applyPagedChildren(
+          parentId,
+          request,
+          graph.directChildren,
+          totalCount,
+          graph.allNodes,
+        );
+      }
       this.engine.clearNodeError(parentId);
       this.reapplyActiveFilter(adapter);
       this.bumpVersion();
@@ -844,11 +855,14 @@ export class TreeStateService<TSource, T = TSource> {
     totalCount: number | undefined,
     itemsCount: number,
   ): number {
+    const debug = this.engine.getPagedNodeDebugState(parentId);
     if (typeof totalCount === 'number' && Number.isFinite(totalCount)) {
+      if (debug && typeof debug.totalCount === 'number') {
+        return Math.max(debug.totalCount, totalCount);
+      }
       return totalCount;
     }
 
-    const debug = this.engine.getPagedNodeDebugState(parentId);
     if (debug && typeof debug.totalCount === 'number') {
       return debug.totalCount;
     }

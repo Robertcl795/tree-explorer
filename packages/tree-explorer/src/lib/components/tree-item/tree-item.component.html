@@ -15,43 +15,39 @@
   (dragend)="onDragEnd($event)"
 >
   @if (row().loading) {
-    <mat-progress-spinner
-      diameter="16"
-      class="row-spinner"></mat-progress-spinner>
+    <cv-circular-progress
+      indeterminate
+      class="row-spinner"
+      aria-label="Loading tree row"></cv-circular-progress>
   }
   <div class="item-content">
     <!-- Expand/Collapse button (always present for alignment) -->
-    <button
-      type="button"
-      mat-icon-button
+    <cv-icon-button
       class="caret-button"
       [disabled]="row().isLeaf"
       [style.visibility]="row().isLeaf ? 'hidden' : 'visible'"
+      [icon]="row().expanded ? 'expand_more' : 'chevron_right'"
       (click)="onExpandClick($event)"
-      (contextmenu)="$event.stopPropagation()"
-    >
-      @if (!row().isLeaf) {
-        <mat-icon>{{ row().expanded ? 'expand_more' : 'chevron_right' }}</mat-icon>
-      }
-    </button>
+      (keydown.enter)="onExpandClick($event)"
+      (contextmenu)="$event.stopPropagation()">
+    </cv-icon-button>
     <!-- Checkbox for selection -->
     @if (showCheckbox()) {
       <div
         class="checkbox-wrapper"
-        matTooltipPosition="right"
         (contextmenu)="$event.stopPropagation()">
-        <mat-checkbox
+        <cv-checkbox
           class="tree-item-checkbox"
           [checked]="row().selected"
           [indeterminate]="row().indeterminate"
           [disabled]="row().disabled"
           (change)="onSelectClick($event)"
-          (click)="$event.stopPropagation()"></mat-checkbox>
+          (click)="$event.stopPropagation()"></cv-checkbox>
       </div>
     }
     <!-- Icon and label -->
     @if (display().showIcons && row().icon) {
-      <mat-icon class="tree-item-icon">{{ row().icon }}</mat-icon>
+      <cv-icon class="tree-item-icon" aria-hidden="true">{{ row().icon }}</cv-icon>
     }
     @if (row().placeholder) {
       <span class="tree-item-placeholder" aria-hidden="true"></span>
@@ -65,13 +61,11 @@
     <div class="tree-item--spacer"></div>
     <!-- Context menu -->
     @if (showContextButton() && !row().disabled) {
-      <button
-        type="button"
-        mat-icon-button
+      <cv-icon-button
         class="context-menu-button"
+        icon="more_vert"
         (click)="onContextButtonClick($event)">
-        <mat-icon>more_vert</mat-icon>
-      </button>
+      </cv-icon-button>
     }
   </div>
 </div>
