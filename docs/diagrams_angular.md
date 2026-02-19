@@ -812,6 +812,7 @@ Only entries where Angular changes tradeoffs or implementation velocity relative
 | D-NG6 | **Fixed row height — same as Lit** | No change | Variable row height is expensive and optional. If needed, label it as a separate "advanced" mode with resize-observer overhead. Not in v1. |
 | D-NG7 | **Adapter calls remain command-based** | Could have been synchronous service calls; kept as commands | Commands remain inspectable data. Testing: assert "engine emitted LoadPage for page 3" without executing the actual adapter. |
 | D-NG8 | **`async-tree` removed** | Same as Lit plan | `TreeExplorerComponent` is the single entry point. No compatibility alias exported. |
+| D-NG9 | **Angular 20 host glue clarified** | Legacy docs referenced wrapper services; Angular 20 baseline keeps engine + command runner co-located in `TreeExplorerComponent` | Prevents dual state ownership and keeps parity with Lit host model while still using RxJS for bounded async command execution. |
 
 ### What stays synchronous vs command-based
 
