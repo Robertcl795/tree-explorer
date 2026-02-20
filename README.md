@@ -1,138 +1,28 @@
 # td-tree-explorer
 
-Monorepo for a library-grade tree system with a framework-agnostic core engine and UI wrappers.
+Monorepo for a tree engine and Angular host built for large datasets, deterministic behavior, and adapter-boundary discipline.
 
-## Why this library
+## Core Architecture
 
-- Large-tree support with virtualization-first design.
-- Adapter-first domain integration.
-- Unified state orchestration in `@tree-core`.
-- Query-based filtering with adapter-owned match semantics.
-- Page-aware lazy loading with placeholders and range-driven page fetch.
-- Optional pinned shortcuts with store-driven persistence hooks.
+- `TreeAdapter` is the only domain boundary.
+- `TreeEngine` owns orchestration/state transitions.
+- `TreeExplorerComponent` is the single Angular entry point.
+- Rendering is selector-driven with `totalCount` and `rowAt(index)`.
+- Async behavior is command-based with `epoch` + `requestId` stale protection.
 
-## Tree Explorer Identity
-
-- `TreeEngine`:
-  the state machine for expansion, selection, filtering, and loading.
-- `TreeNode`:
-  canonical node state used by the engine (not your raw API shape).
-- `TreeAdapter`:
-  the domain boundary that maps API/domain data to tree behavior.
-- `Filtering`:
-  query-driven visibility policy managed by `TreeEngine`, with adapter-owned match semantics.
-- `Page-Aware Virtual Scrolling`:
-  fixed-height row orchestration with placeholders so huge, paged trees remain smooth and accurate.
-
-## Feature Snapshot
-
-- Tree state engine (`TreeEngine`) with expand/select/load/error orchestration.
-- Query filtering contract:
-  - `setFilter`, `clearFilter`, `getFilteredFlatList`.
-  - adapter hooks: `matches`, `getSearchText`, `highlightRanges`.
-- Virtualization-safe placeholders for paged children.
-- Lit wrapper POC (`@lit-tree-explorer`) with core parity for filtering input.
-- Storybook coverage grouped by feature (`Basic Usage`, `Virtual scroll`, `Filtering`, `Pinned items`, `Errors & edge cases`).
-- Storybook edge-case coverage for initial load failures, page-aware retries, and pinned async navigation failures.
-- Pinned cookbook story for nested async auto-navigation success/failure.
-- Angular highlight pipe for matched labels (`TreeHighlightMatchPipe`), driven by current `filterQuery`.
-- First-class theme contract via CSS variables (`--tree-*`) for design-system alignment.
-
-## Platform Baseline
-
-- Angular baseline: `19.2.x` (workspace standard).
-- Node: `>=18`
-- pnpm: `9.x`
-
-See [Next Steps](./docs/next-steps.md) for Angular 20 adoption opportunities.
-
-## Quickstart
-
-### 1) Install and validate
+## Quick Start
 
 ```bash
 pnpm install
 pnpm typecheck
-pnpm docs:check
+pnpm test
 ```
 
-### 2) Run Storybook
+## Documentation
 
-```bash
-pnpm storybook
-```
+Start with the canonical index:
 
-### 3) Minimal Angular usage
-
-```ts
-import { Component, signal } from '@angular/core';
-import { TreeExplorerComponent } from '@tree-explorer';
-import { TreeAdapter, TreeConfig } from '@tree-core';
-
-type Item = { id: string; name: string; children?: Item[] };
-
-const adapter: TreeAdapter<Item, Item> = {
-  getId: (source) => source.id,
-  getLabel: (data) => data.name,
-  getChildren: (data) => data.children,
-};
-
-const config: Partial<TreeConfig<Item>> = {
-  virtualization: { mode: 'auto', itemSize: 36 },
-  filtering: { showParentsOfMatches: true, autoExpandMatches: true },
-};
-
-@Component({
-  standalone: true,
-  imports: [TreeExplorerComponent],
-  template: `
-    <tree-explorer
-      [data]="data"
-      [adapter]="adapter"
-      [config]="config"
-      [filterQuery]="query()"
-      style="height: 70vh; display: block" />
-  `,
-})
-export class DemoComponent {
-  query = signal('budget');
-  data: Item[] = [{ id: 'root', name: 'Root', children: [{ id: 'budget', name: 'Budget FY26.xlsx' }] }];
-  adapter = adapter;
-  config = config;
-}
-```
-
-## Documentation Hub
-
-Start here if you are new:
-
-1. [Architecture](./docs/architecture.md)
-2. [Filtering](./docs/filtering.md)
-3. [Pinned Items](./docs/pinned-items.md)
-4. [Theming](./docs/theming.md)
-
-### Architecture and Design
-
-- [Architecture](./docs/architecture.md)
-- [TreeEngine Audit](./docs/tree-engine-audit.md)
-- [Filtering](./docs/filtering.md)
-- [Page-Aware Virtual Scroll](./docs/page-aware-virtual-scroll.md)
-- [Pinned Items](./docs/pinned-items.md)
-- [Theming](./docs/theming.md)
-
-### Quality and Planning
-
-- [Quality Report](./docs/quality-report.md)
-
-### Workspace and Operations
-
-- [Monorepo Workflow](./docs/monorepo.md)
-
-### Package Guides
-
-- [@tree-core README](./packages/tree-core/README.md)
-- [@tree-explorer README](./packages/tree-explorer/README.md)
-- [@lit-tree-explorer README](./packages/lit-tree-explorer/README.md)
+- [`docs/README.md`](./docs/README.md)
 
 ## Workspace Commands
 
@@ -142,14 +32,8 @@ Start here if you are new:
 - `pnpm lint`
 - `pnpm storybook`
 - `pnpm storybook:build`
-- `pnpm storybook:lit`
-- `pnpm storybook:build:lit`
-- `pnpm storybook:all`
-- `pnpm storybook:build:all`
-- `pnpm docs:check`
 
 ## Packages
 
-- `@tree-core`: engine, contracts, utilities.
-- `@tree-explorer`: Angular wrapper.
-- `@lit-tree-explorer`: Lit POC wrapper.
+- `@tree-core`: framework-agnostic engine/contracts.
+- `@tree-explorer`: Angular host wrapper.

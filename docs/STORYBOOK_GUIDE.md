@@ -1,91 +1,50 @@
 # Storybook Guide
 
 ## Objective
-Use Storybook as the architecture compliance and behavior verification surface for Angular Tree Explorer.
+Use Storybook as an implementation-verification harness for behavior, race handling, and scale.
 
-Reference baseline: `docs/diagrams_angular.md` and `docs/ARCHITECTURE_OVERVIEW.md`.
+## Scope Rules
+- Stories pass only `adapter` + `config` + host callbacks.
+- No story-specific behavior that bypasses engine flow.
+- Focus on correctness and scale, not visual polish.
 
-## Setup
-- Framework: `@storybook/angular`.
-- Story location: `testing/stories/tree-explorer`.
-- Shared fixtures: `testing/mocks`.
-- Story rule: stories pass only `adapter` + `config` + host-level callbacks.
+## Required Story Groups
 
-## Story Structure
+### Scale stories
 - `Tree/Scale/10k`
 - `Tree/Scale/100k`
 - `Tree/Scale/500k`
-- `Tree/Interactions/Selection`
-- `Tree/Interactions/Filtering`
-- `Tree/Interactions/ExpandCollapse`
-- `Tree/Interactions/KeyboardNav`
-- `Tree/Interactions/ContextMenu`
-- `Tree/Race/PageAwareInvalidation`
-
-## Required Stories
-
-### Scale stories
-- 10k: baseline behavior and controls sanity.
-- 100k: stress-check virtualization and loading.
-- 500k: hard gate story for scroll smoothness and memory.
-
-### Controls and toggles
-- Virtualization enabled/disabled.
-- Page-aware enabled/disabled.
-- Selection mode (`none`, `single`, `multi`).
-- Context menu enabled/disabled.
-- Pinned enabled/disabled.
-- Overscan, row height, page size.
 
 ### Interaction stories
-- Expand/collapse with paged children.
-- Selection mode transitions and range selection.
-- Filtering with adapter-owned semantics.
-- Keyboard traversal and `aria-activedescendant` updates.
-- Context menu open/action/close ownership in host.
+- `Tree/Interactions/Expansion`
+- `Tree/Interactions/Selection`
+- `Tree/Interactions/Filtering`
+- `Tree/Interactions/Navigation`
+- `Tree/Interactions/Pinned`
+- `Tree/Interactions/ContextMenu`
+
+### Race and stale-protection stories
+- `Tree/Race/ViewportChurn`
+- `Tree/Race/FilterDuringLoad`
+- `Tree/Race/ExpandDuringLoad`
+
+## Story Requirements
+
+- Include config controls for virtualization, page-aware mode, selection, context menu, and pinned.
+- Include fixed `itemSize` and overscan controls.
+- Use synthetic adapters with parent-aware page requests.
+- Include interaction `play` tests where possible.
 
 ## Architecture Enforcement in Stories
-- Stories do not import engine internals directly.
-- Stories do not patch component private state.
-- Stories do not embed domain logic in templates.
-- Stories exercise real adapter contract behavior through mocks.
 
-## Example Story Pattern
-```ts
-export const Scale500k: Story = {
-  args: {
-    adapter: createSyntheticAdapter(500_000, 200),
-    config: createDefaultConfig({
-      virtualization: { enabled: true, itemSize: 32, overscan: 20 },
-      pageAware: { enabled: true, defaultPageSize: 200 },
-      selection: { mode: 'multi' },
-      contextMenu: { enabled: true },
-      pinned: { enabled: true },
-    }),
-  },
-};
-```
+- Verify flow: intents -> component -> engine -> derived rows -> render.
+- Verify adapter calls are command-driven.
+- Verify `totalCount` + `rowAt(index)` rendering contract.
+- Verify stale responses are ignored under race scenarios.
 
-## Visual Regression Strategy (Outline)
-- Capture baseline snapshots for each required story.
-- Capture two viewport sizes: desktop and mobile.
-- Include state snapshots for expanded, filtered, selected, and error states.
-- Run visual diff on PRs touching rendering, CSS, or row template logic.
+## Completion Checklist
 
-## Interaction Test Strategy in Storybook
-- Use `play` functions to drive keyboard and click sequences.
-- Validate output events (`selectionChange`, `loadError`) and DOM state.
-- Validate page-aware range requests using mock adapter spies.
-
-## Definition of Done Checklist
-- [ ] All required stories exist and render cleanly.
-- [ ] 10k/100k/500k stories run without architecture violations.
-- [ ] Controls expose all config-driven toggles.
-- [ ] Interaction stories cover selection, filtering, expand/collapse, keyboard nav, context menu.
-- [ ] Visual baseline snapshots created and checked in.
-- [ ] Storybook CI build passes.
-
-## Success Checkpoints
-- 500k story stays under DOM ceiling gate during scripted scroll interactions.
-- All interaction `play` tests pass with deterministic mock adapters.
-- Architecture lint rule reports 0 violations for direct engine internals usage in stories.
+- [ ] 10k/100k/500k stories run without invariant breaks.
+- [ ] Interaction stories cover expansion, selection, filtering, navigation, pinned, context menu.
+- [ ] Race stories demonstrate stale-discard correctness.
+- [ ] Story interactions do not depend on non-canonical code paths.
